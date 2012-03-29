@@ -1,0 +1,167 @@
+#PostgreyLDAP Configuration File
+#
+# This is a simple Key Value style configuration file.
+#
+# Some options take a list (comma seperated), and there are other 
+# related strange quoting and escaping rules. See Config::Simple
+#
+# NOTE: Defaults are silently applied
+#       Invalid settings are silently ignored, and defaults applied
+#
+# To see the actual configuration that postgreyldap would use, run it:
+#
+#  $ ./postgreyldap --config config --dumpconfig 
+#
+##################################################################
+#
+#LDAP Related Configuration
+#
+##################################################################
+
+#LDAP Server hostname
+server		localhost
+
+#DN to bind with. Must be in quotes
+dn		    "cn=pgl,ou=users,dc=example,dc=com"
+
+#Password. Possibly needs to be in quotes if Config::Simple would otherwise get confused
+password	paSSw0rd
+
+#LDAP Server Version (2 or 3)
+version		3
+
+#LDAP Base DN for searching. Recommended to be dedicated to this app.
+base		"ou=postgreyldap,dc=example,dc=com"
+
+###################################################################
+#
+#Required Configuration Settings
+#
+##################################################################
+
+#Listen on the unix socket provide by the path
+unix	/var/spool/postfix/postgreyldap/socket
+
+#OR
+#listen on PORT, localhost if HOST is not specified
+#inet	[HOST:]PORT
+
+#Lock directory
+#lockdir /var/spool/postfix/postgrey 
+lockdir	/home/jwarnica/workspace/postgrey-ldap/db
+
+user	postgreyldap
+group	nogroup
+
+
+##################################################################
+#
+#Other Common Configuration Settings
+#
+##################################################################
+
+#Hostname
+#
+# Set the hostname to use, if we guess wrong. Default is what Sys::Hostname provides
+hostname stupidbox17.yoyodynepropulsion.net
+
+#Retry window specified in days (d) or hours (h). Default is 2d
+retry-window	2d
+
+#default is true. Accepts true/false/yes/no
+daemonize false
+
+#greylist for N seconds (default: 300)
+delay 300
+
+#delete entries older than N days since the last time
+#that they have been seen (default: 35)
+max-age 35
+
+#log verbosity 1, 2, 3
+log-level	2
+
+#Lookup Mode.
+# host: do not strip the last 8 bits from IP addresses
+# subnet: strip the last 8 bits from IP addresses (default)
+# Will silently use "host" if anything except "subnet" 
+lookup-by subnet
+
+#Automatic Whitelist Hit Count
+#   
+#Automatic whitelist host after N successful deliveries
+#	The default is on, with N=5. specify N=0 to disable.
+auto-whitelist-clients 5
+
+#Automatic Whitelist "Hit Window"
+#
+#Specifiy a window of time, in minutes, where successful 
+#      delivereies only count as a single delivery, for auto 
+#      whitelisting.
+#      e.g. 3 deliveries in 1 hour counts as 1 delivery
+#      Default: 60
+
+auto-whitelist-window 60
+
+#Greylist Action
+#
+#  if greylisted, return A to Postfix 
+#  (default: DEFER_IF_PERMIT)
+
+greylist-action DEFER_IF_PERMIT
+
+#Greylist Response
+#
+#  Response when a mail is greylisted
+#	Text Replacements Available:
+#	%r	recipiant domain
+#   %s  Seconds remaining until greylisting is over
+#  (default: Greylisted + help url, see below)
+#
+
+greylist-text 'Greylisted, see http://postgrey.schweikert.ch/help/%r.html'
+                         
+#Privacy
+#
+# store data using one-way hash functions
+# Default: false
+
+privacy false
+
+
+#Whitelist Client Configuration
+#
+# Comma seperated list of full path filenames containing client whitelists
+# Special case: If one of the "files" is exactly "LDAP", will also query LDAP for whitelists
+#
+#default: LDAP,/etc/postfix/postgrey_whitelist_clients, /etc/postfix/postgrey_whitelist_clients.local
+#
+
+whitelist-clients LDAP
+
+#Whitelist recipients
+# 
+# Comma seperated list of full path filenames containing recipients whitelists
+# Special case: If one of the "files" is exactly "LDAP", will also query LDAP for whitelists
+#
+# default: LDAP,/etc/postfix/postgrey_whitelist_recipients
+
+whitelist-recipients LDAP
+
+
+##################################################################
+#
+#More obscure settings
+#
+##################################################################
+
+#allow for N waiting connections to our socket
+# default is system dependent. Happens to be 128 on my desktop
+listen-queue-size 128
+
+#Pidfile for Net::Server. Default is unset (empty)
+#pidfile 
+
+#Exim mode. don't reuse a socket for more than one query (exim compatible)
+#default is unset (empty)
+#exim
