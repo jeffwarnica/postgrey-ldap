@@ -1,0 +1,1381 @@
+#!/usr/bin/perl -T -w
+
+# PostgreyLDAP: an LDAP backed Postfix Greylisting Policy Server
+# Copyright (c) 2004-2007 ETH Zurich
+# Copyright (c) 2007 Open Systems AG, Switzerland
+# Copyright (c) 2012 Jeff Warnica
+# released under the GNU General Public License
+
+# see the documentation with 'perldoc postgreyldap'
+
+package postgreyldap;
+use strict;
+use Pod::Usage;
+use Getopt::Long 2.25 qw(:config posix_default no_ignore_case);
+use Net::Server; # used only to find out which version we use
+use Net::Server::Multiplex;
+use Net::LDAP;
+use DBI;
+use Fcntl ':flock'; # import LOCK_* constants
+use Sys::Hostname;
+use Sys::Syslog; # used only to find out which version we use
+use POSIX qw(strftime setlocale LC_ALL);
+
+use Config::Simple;
+
+use Data::Dumper;
+
+use vars qw(@ISA);
+@ISA = qw(Net::Server::Multiplex);
+
+my $VERSION = '0.0.1';
+my $DEFAULT_LOCKDIR = '/var/spool/postfix/postgrey';
+my $CONFIG_DIR = '/etc/postfix';
+
+sub unix2generalizedTime($$) {
+	my ($self, $in) = @_;
+	
+	return strftime("%Y%m%d%k%M%SZ", localtime($in));
+}
+
+sub generalizedTime2UnixTime($$) {
+	my ($self, $in) = @_;
+
+	#$self->mylog(1, ">> generalizedTime2UnixTime( $in )");
+	
+	#YYYYMMDDHHMMSS.fff (local)
+	#YYYYMMDDHHMMSS.fffZ (UTC)
+	#YYYYMMDDHHMMSS.fff+-HHMM (with offset)
+	my ($year, $month, $day, $hour, $min, $sec, $frac, $local, $offdir, $offhr, $offmin, $time);
+	$frac = 0;
+	$local = 0;
+	
+	if ($in =~ /^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)\.?(\d\d\d)?$/) {
+		($year, $month, $day, $hour, $min, $sec) = ($1, $2, $3, $4, $5, $6);
+		if (defined $7) { $frac = $7;}
+		$self->mylog(1, " local: ($year, $month, $hour, $min, $sec, $frac)  ");
+		$local = 1;
+	} elsif ($in =~ /^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)\.?(\d\d\d)?Z$/) {
+		($year, $month, $day, $hour, $min, $sec) = ($1, $2, $3, $4, $5, $6);
+		if (defined $7) { $frac = $7;}
+		$self->mylog(1, " UTC: ($year, $month, $hour, $min, $sec, $frac)  ");
+	} elsif ($in =~ /^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)\.?(\d\d\d)?([+-])(\d\d)(\d\d)$/) {
+		($year, $month, $day, $hour, $min, $sec, $frac, $offdir, $offhr, $offmin) = ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+		$self->mylog(1, " With offset: ($year, $month, $hour, $min, $sec, $frac, $offdir, $offhr, $offmin)  ");
+	}
+				        #(sec, min, hour, mday, mon, year, wday = 0, yday = 0, isdst = -1)
+	$time = POSIX::mktime($sec, $min, $hour, $day, $month-1, $year-1900);
+	
+	#$self->mylog(1, "Time $in = $time = " . $self->unix2generalizedTime($time));
+	
+	return $time;
+}
+
+sub ldap_init($$) 
+{
+	my ($self, $file) = @_;
+	
+	$self->mylog(1, ">> ldap_init()");
+	
+	my $Config = $self->{pgl}{config};
+	
+	$self->{pgl}{ldap} = Net::LDAP->new($Config->param('server')) or die "$@";
+	
+	my $mesg = $self->{pgl}{ldap}->bind($Config->param('dn'), password => $Config->param('password')) || die "$@";
+	
+	$mesg->code && die"failed to Bind to LDAP: ", $mesg->error ;
+}
+
+sub ldap_cawl_cleanup($$) {
+	my ($self, $max_age_t) = @_;
+	$self->mylog(1, ">> ldap_cawl_cleanup( $max_age_t )");
+	
+	my $base = $self->{pgl}{ldap_base};
+	
+	$max_age_t = $self->unix2generalizedTime($max_age_t);
+	
+	my $result = $self->{pgl}{ldap}->search ( 
+								base    => $base,
+                                scope   => "sub",
+                                filter  => "(&(objectClass=GreyListClientAutoWhitelist)(PostgreyLdapTimestampLast<=$max_age_t))",
+                                attrs   =>  ['dn']
+    ) || die "$@";
+    
+    my $max = $result->count;
+    for ( my $i = 0 ; $i < $max ; $i++ ) {
+   		my $entry = $result->entry ( $i );
+   		$self->mylog(1, "          Deleting entry " . $entry->dn());
+		$entry->delete();
+		$entry->update($self->{pgl}{ldap});   		
+    }
+}
+
+
+sub ldap_cawl_create($$) {
+	my ($self, $cawl_key, $cawl_count, $cawl_first_t, $now) = @_;
+	$self->mylog(1, ">> ldap_cawl_create( $cawl_key, $cawl_count, $cawl_first_t, $now )");
+	
+	my $base = $self->{pgl}{ldap_base};
+	
+	$now = $self->unix2generalizedTime($now);
+	$cawl_first_t = $self->unix2generalizedTime($cawl_first_t);
+	my $dn = "cn=" . $cawl_key . "," . $base;
+	
+	$self->mylog(1, "       Attempting to add dn: $dn");
+	
+	my $result = $self->{pgl}{ldap}->add(
+		$dn, 
+		attr => [
+			'objectClass' => [ "top", "GreyListClientAutoWhitelist"],
+			'cn' => $cawl_key,
+			'PostgreyLdapClientHost' => $cawl_key,
+			'PostGreyLdapPassCount' => $cawl_count,
+			'PostgreyLdapTimestampFirst' => $cawl_first_t,
+			'PostgreyLdapTimestampLast' => $now,
+			#TODO add delta_t	
+		]);
+	
+	$result->code && warn "failed to add entry: ", $result->error ;
+	
+}
+
+sub ldap_cawl_lookup($$) {
+	my ($self, $cawl_key) = @_;
+	$self->mylog(1, ">> ldap_cawl_lookup( $cawl_key )");
+
+	my $base = $self->{pgl}{ldap_base};
+	
+	my $filter =  "(&(objectClass=GreyListClientAutoWhitelist)(PostgreyLdapClientHost=$cawl_key))";
+	$self->mylog(1, "          $base");
+	$self->mylog(1, "          $filter");
+	my $result = $self->{pgl}{ldap}->search ( 
+								base    => $base,
+                                scope   => "sub",
+                                filter  => $filter,
+                                attrs   =>  ['PostGreyLdapPassCount','PostgreyLdapTimestampLast']
+    ) || die "$@";
+    	 
+    $self->mylog(1, "Count: " . $result->count);
+    
+    if ( $result->count > 1 ) {
+    	die "Serious problems with LDAP: returning multiple results for $filter at $base. Should not be possible";
+    } elsif ( $result->count == 1 ) {
+    	my $entry = $result->entry(0);
+    	my $pc = $entry->get_value('PostGreyLdapPassCount');
+    	my $tsl = $self->generalizedTime2UnixTime($entry->get_value('PostgreyLdapTimestampLast'));
+    	
+    	$self->mylog(1, "<< $pc, $tsl");
+    	return ($pc, $tsl, $entry);
+    } else {
+    	return;
+    }
+}
+
+#note we are passed back the LDAP entry $cawl_entry from the search
+sub ldap_cawl_update($$) {
+	#UPDATE cawl SET count=?, first_t=?, last_t=? WHERE ip=?
+	
+	my ($self, $cawl_count, $now, $cawl_key, $cawl_first_t, $cawl_entry) = @_;
+	
+	$now = $self->unix2generalizedTime($now);
+	$cawl_first_t = $self->unix2generalizedTime($cawl_first_t);
+	
+	$self->mylog(1, ">> ldap_cawl_update( $cawl_count, $now, $cawl_key, $cawl_first_t, " . $cawl_entry->dn() . " )");
+	
+	my $result = $self->{pgl}{ldap}->modify(
+						$cawl_entry->dn(), 
+						changes => [ 
+							replace => [  'PostGreyLdapPassCount', $cawl_count,
+										  'PostgreyLdapTimestampLast', $now,
+										  'PostgreyLdapTimestampFirst', $cawl_first_t
+									   ]
+						]);
+}
+
+#note we are passed back the LDAP entry $cawl_entry from the search
+sub ldap_cawl_update2($$) {
+	#UPDATE cawl SET count=?, last_t=? WHERE ip=?
+	
+	my ($self, $cawl_count, $now, $cawl_key, $cawl_entry) = @_;
+	
+	my $nowAsLDAP = $self->unix2generalizedTime($now);
+	
+	$self->mylog(1, ">> ldap_cawl_update2( $cawl_count, $now, $cawl_key, " . $cawl_entry->dn() . " )");
+	
+	my $result = $self->{pgl}{ldap}->modify(
+						$cawl_entry->dn(), 
+						changes => [ 
+							replace => [  'PostGreyLdapPassCount', $cawl_count,
+										  'PostgreyLdapTimestampLast', $nowAsLDAP
+									   ]
+						]);
+}
+
+sub ldap_triplet_lookup($$) {
+	
+	my ($self, $client_net, $sender, $recip) = @_;
+	
+	$self->mylog(1, ">> ldap_triplet_lookup( $client_net, $sender, $recip )");
+	
+	my $filter = "(&(objectClass=GreyListTriplet)(PostgreyLdapClientAddress=$client_net)(PostgreyLdapSenderAddress=$sender)(PostgreyLdapRecipientAddress=$recip))";
+	my $base = $self->{pgl}{ldap_base};
+	
+	$self->mylog(1, "          $filter");
+	
+	
+	my $result = $self->{pgl}{ldap}->search ( 
+								base    => $base,
+                                scope   => "sub",
+                                filter  => $filter,
+                                attrs   =>  ['PostgreyLdapTimestampFirst','PostgreyLdapTimestampLast']
+    ) || die "$@";
+    
+    my $resStruct = $result->entry(0);
+    
+    $self->mylog(1, "Count: " . $result->count);
+    
+    if ( $result->count > 1 ) {
+    	die "Serious problems with LDAP: returning multiple results for $filter at $base. Should not be possible";
+    } elsif ( $result->count == 1 ) {
+    	my $entry = $result->entry(0);
+    	my $first = $self->generalizedTime2UnixTime($entry->get_value('PostgreyLdapTimestampFirst'));
+    	my $last  = $self->generalizedTime2UnixTime($entry->get_value('PostgreyLdapTimestampLast'));
+    	
+    	$self->mylog(1, "<< $first, $last");
+    	return ($first, $last, $entry);
+    } else {
+    	return;
+    }
+    
+}
+
+sub ldap_triplet_create($$) {
+	my ($self, $client_net, $sender, $recip, $client_host, $first, $now, $delta_t) = @_;
+	$self->mylog(1, ">> ldap_triplet_create( $client_net, $sender, $recip, $client_host, $first, $now, $delta_t )");
+
+	my $base = $self->{pgl}{ldap_base};
+	
+	$first = $self->unix2generalizedTime($first);
+	$now = $self->unix2generalizedTime($now);
+	my $cn = "$client_net/$sender/$recip";
+	my $dn = "cn=" . $cn . "," . $base;
+	
+	$self->mylog(1, "       Attempting to add dn: $dn");
+	
+	my $result = $self->{pgl}{ldap}->add(
+		$dn, 
+		attr => [
+			'objectClass' => [ "top", "GreyListTriplet"],
+			'cn' => $cn,
+			'PostgreyLdapClientAddress' => $client_net,
+			'PostgreyLdapSenderAddress' => $sender,
+			'PostgreyLdapRecipientAddress' => $recip,
+			'PostgreyLdapClientHost' => $client_host,
+			'PostgreyLdapTimestampFirst' => $first,
+			'PostgreyLdapTimestampLast' => $now,
+			'PostgreyTimestampDelta'	=> $delta_t,
+		]);
+	
+	$result->code && warn "failed to add entry: ", $result->error ;
+	
+}
+
+#UPDATE triplets SET host=?, first_t=?, last_t=?, delta_t=?
+# WHERE ip=? AND send=? AND rcpt=?
+sub ldap_triplet_update($$) {
+	my ($self, $client_host, $first, $now, $delta_t, $client_net, $sender, $recip, $trip_entry) = @_;
+	
+	$self->mylog(1, ">> ldap_triplet_update( $client_host, $first, $now, $delta_t, $client_net, $sender, $recip, " . $trip_entry->dn() . " )");
+
+	my $base = $self->{pgl}{ldap_base};
+	
+	$first = $self->unix2generalizedTime($first);
+	$now = $self->unix2generalizedTime($now);
+	
+	$self->mylog(1,                     "First: $first Now: $now");
+	
+	my $result = $self->{pgl}{ldap}->modify(
+						$trip_entry->dn(), 
+						changes => [ 
+							replace => [  'PostgreyLdapClientHost', $client_host,
+										  'PostgreyLdapTimestampFirst', $first,
+										  'PostgreyLdapTimestampLast', $now,
+										  'PostgreyTimestampDelta'	=> $delta_t,
+									   ]
+						]);
+	
+}
+
+sub ldap_triplets_cleanup($$) {
+
+	my ($self, $max_age_t, $retry_window_t) = @_;
+	$self->mylog(1, ">> ldap_triplets_cleanup( $max_age_t, $retry_window_t )");
+	
+	my $base = $self->{pgl}{ldap_base};
+	
+	$max_age_t = $self->unix2generalizedTime($max_age_t);
+	$retry_window_t = $self->unix2generalizedTime($retry_window_t);
+	my $delay = $self->{pgl}{delay};
+
+	my $filter = "(&(objectClass=GreyListTriplet)(|(PostgreyLdapTimestampLast<=$max_age_t)(&(PostgreyTimestampDelta<=$delay)(PostgreyLdapTimestampLast<=$retry_window_t))))";
+	
+	$self->mylog(1, "          Filter: $filter");
+	
+	my $result = $self->{pgl}{ldap}->search ( 
+								base    => $base,
+                                scope   => "sub",
+                                filter  => $filter,
+                                attrs   =>  ['dn']
+    ) || die "$@";
+    
+    my $max = $result->count;
+    for ( my $i = 0 ; $i < $max ; $i++ ) {
+   		my $entry = $result->entry ( $i );
+   		$self->mylog(1, "          Deleting entry " . $entry->dn());
+		$entry->delete();
+		$entry->update($self->{pgl}{ldap});   		
+    }
+	
+}
+
+
+sub cidr_parse($)
+{
+    defined $_[0] or return undef;
+    $_[0] =~ /^(\d+)\.(\d+)\.(\d+)\.(\d+)\/(\d+)$/ or return undef;
+    $1 < 256 and $2 < 256 and $3 < 256 and $4 < 256 and $5 <= 32 and $5 > 0
+    	or return undef;
+    my $net = ($1 << 24)+($2 << 16)+($3 << 8)+$4;
+    my $mask = ~((1<<(32-$5))-1);
+    return ($net & $mask, $mask);
+}
+
+sub cidr_match($$$)
+{
+    my ($net, $mask, $addr) = @_;
+    return undef unless defined $net and defined $mask and defined $addr;
+    if($addr =~ /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/) {
+        $addr =  ($1 << 24)+($2 << 16)+($3 << 8)+$4;
+    }
+    return ($addr & $mask) == $net;
+}
+
+sub read_clients_whitelists($)
+{
+    my ($self) = @_;
+$self->mylog(1, ">> read_clients_whitelists( )");
+
+    my @whitelist_clients = ();
+    my @whitelist_ips = ();
+    my @whitelist_cidr = ();
+    for my $f (@{$self->{pgl}{whitelist_clients_files}}) {
+    	my @lines;
+    	if ($f eq "LDAP") {
+    		@lines = $self->slurp_ldap_wl_clients();
+    	} else {
+    		if (open(INPUT, "<$f")) {
+				(@lines) = <INPUT>; 
+				close(INPUT);
+    		} else {
+    			 # do not warn about .local file: maybe the user just doesn't have one
+            	warn "can't open $f: $!\n" unless $f =~ /\.local$/;
+    		}
+    	}
+        foreach (@lines) {
+            s/#.*$//; s/^\s+//; s/\s+$//; next if $_ eq '';
+            if(/^\/(\S+)\/$/) {
+                # regular expression
+                push @whitelist_clients, qr{$1}i;
+            } elsif(/^\d{1,3}(?:\.\d{1,3}){0,3}$/) {
+                    # IP address or part of it
+                    push @whitelist_ips, qr{^\Q$_\E\b};
+            } elsif(/^.*\:.*\:.*$/) {
+                # IPv6?
+                push @whitelist_ips, qr{^\Q$_\E\b};
+            } elsif(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/) {
+                my ($net, $mask) = cidr_parse($_);
+                if(defined $mask) {
+                    push @whitelist_cidr, [ $net, $mask ];
+                } else {
+                    warn "$f line $.: invalid cidr address\n";
+                }
+            } elsif(/^\S+$/) {
+	            # note: we had ^[^\s\/]+$ but it triggers a bug in perl 5.8.0
+	            push @whitelist_clients, qr{(?:^|\.)\Q$_\E$}i;
+            } else {
+				warn "$f line $.: doesn't look like a hostname\n";
+            }
+        }
+    }
+    $self->{pgl}{whitelist_clients} = \@whitelist_clients;
+    $self->{pgl}{whitelist_ips}     = \@whitelist_ips;
+    $self->{pgl}{whitelist_cidr}    = \@whitelist_cidr;
+}
+
+sub slurp_ldap_wl_clients(@) {
+	my ($self) = @_;
+	my $attr = "PostgreyWhitelistEntry";
+	my $oc = "GreyListClientWhitelist";
+	return $self->slurp_ldap_wl_($oc, $attr);
+}
+
+sub slurp_ldap_wl_recip(@) {
+	my ($self) = @_;
+	my $attr = "PostgreyWhitelistEntry";
+	my $oc = "GreyListRecipientWhitelist";
+	return $self->slurp_ldap_wl_($oc, $attr);
+}
+
+sub slurp_ldap_wl_($$) {
+	my ($self, $oc, $attr) = @_;
+	$self->mylog(1, ">> slurp_ldap_wl_( $oc, $attr)");
+	
+	my $filter = "(objectClass=$oc)";
+	
+	my $base = $self->{pgl}{ldap_base};
+	
+	$self->mylog(1, "          $filter         $base");
+	
+	my $result = $self->{pgl}{ldap}->search ( 
+								base    => $base,
+                                scope   => "sub",
+                                filter  => $filter,
+                                attrs   =>  [$attr]
+    ) || die "$@";
+    
+    my @recips;
+    
+	foreach ($result->entries()) {
+		push @recips, $_->get_value('PostgreyWhitelistEntry');
+	}
+	
+	return @recips;	
+}
+
+sub read_recipients_whitelists($)
+{
+    my ($self) = @_;
+
+$self->mylog(1, ">> read_recipients_whitelists( )");
+
+    my @whitelist_recipients = ();
+    for my $f (@{$self->{pgl}{whitelist_recipients_files}}) {
+		my @recips;
+    	if ($f eq "LDAP") {
+    		@recips = $self->slurp_ldap_wl_recip();
+    	} else {
+    		if (open(INPUT, "<$f")) {
+				(@recips) = <INPUT>; 
+				close(INPUT);
+    		} else {
+    			 # do not warn about .local file: maybe the user just doesn't have one
+            	warn "can't open $f: $!\n" unless $f =~ /\.local$/;
+    		}
+    	}
+        foreach (@recips) {
+            s/#.*$//; s/^\s+//; s/\s+$//; next if $_ eq '';
+            my ($user, $domain) = split(/\@/, $_, 2);
+            if(/^\/(\S+)\/$/) {
+                # regular expression
+                push @whitelist_recipients, qr{$1}i;
+            } elsif(!/^\S+$/) {
+                warn "$f line $.: doesn't look like an address\n";
+            }
+            # postfix access(5) syntax:
+            elsif(defined $domain and $domain ne '') {
+                # user@domain (match also user+extension@domain)
+                push @whitelist_recipients, qr{^\Q$user\E(?:\+[^@]+)?\@\Q$domain\E$}i;
+            } elsif(defined $domain) {
+                # user@
+                push @whitelist_recipients, qr{^\Q$user\E(?:\+[^@]+)?\@}i;
+            } else {
+                # domain ($user is the domain)
+                push @whitelist_recipients, qr{(?:^|\.)\Q$user\E$}i;
+            }
+        }
+    }
+    $self->{pgl}{whitelist_recipients} = \@whitelist_recipients;
+}
+
+sub do_sender_substitutions($$)
+{
+    my ($self, $addr) = @_;
+
+    my ($user, $domain) = split(/@/, $addr, 2);
+    defined $domain or return $addr;
+    # strip extension, used sometimes for mailing-list VERP
+    $user =~ s/\+.*//;
+    # replace numbers in VERP addresses with '#' so that
+    # we don't create a new key for each mail
+    $user =~ s/\b\d+\b/#/g;
+    return "$user\@$domain";
+}
+
+# split network and host part and return both
+sub do_client_substitutions($$$)
+{
+    my ($self, $ip, $revdns) = @_;
+
+    if($self->{pgl}{lookup_by_host}) {
+        return ($ip, $ip);
+    }
+
+    my @ip=split(/\./, $ip);
+    return ($ip, undef) unless defined $ip[3];
+    # skip if it contains the last two IP numbers in the hostname
+    # (we assume it is a pool of dialup addresses of a provider)
+    return ($ip, undef) if $revdns =~ /$ip[2]/ and $revdns =~ /$ip[3]/;
+    return (join('.', @ip[0..2], '0'), $ip[3]);
+}
+
+sub do_maintenance($$)
+{
+    my ($self, $now) = @_;
+
+    my $max_age_t      = $now - $self->{pgl}{max_age};
+    my $retry_window_t = $now - $self->{pgl}{config}->param("retry-window");
+    
+    # remove old triplets
+    $self->ldap_triplets_cleanup($max_age_t, $retry_window_t);
+    
+    # remove old cawl entries
+    $self->ldap_cawl_cleanup($max_age_t);
+}
+
+sub mylog($$$)
+{
+    my ($self, $level, $string) = @_;
+    $string =~ s/\%/%%/g; # for Net::Server <= 0.87
+    if(!defined $Sys::Syslog::VERSION or $Sys::Syslog::VERSION lt '0.15'
+    or !defined $Net::Server::VERSION or $Net::Server::VERSION lt '0.94') {
+        # Workaround for a crash when syslog daemon is temporarily not
+        # present (for example on syslog rotation).
+        # Note that this is not necessary with Sys::Syslog >= 0.15 and
+        # Net::Server >= 0.94 thanks to the nofatal Option.
+        eval {
+            local $SIG{"__DIE__"} = sub { };
+            $self->log($level, $string);
+        };
+    }
+    else {
+        $self->log($level, $string);
+    }
+}
+
+sub mylog_action($$$;$$)
+{
+    my ($self, $attr, $action, $reason, $additional_info) = @_;
+
+    my $str;
+    $str .= $attr->{queue_id} . ': ' if $attr->{queue_id};
+    my @info = ("action=$action");
+    push @info, "reason=$reason" if defined $reason;
+    push @info, $additional_info if defined $additional_info;
+    for my $a (qw(client_name client_address sender recipient)) {
+        push @info, "$a=$attr->{$a}" if $attr->{$a};
+    }
+    $str .= join(', ', @info);
+    $self->mylog(2, $str);
+}
+
+sub is_new_instance($$)
+{
+    my ($self, $inst) = @_;
+    return 1 if not defined $inst; # in case the 'instance' parameter
+                                   # was not supplied by the client (Exim)
+
+    # we keep a list of the last 20 "instances", which identify unique messages
+    # so that for example we only put one X-Greylist header per message.
+    $self->{pgl}{instances} = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
+        unless defined $self->{pgl}{instances};
+
+    my $i = $self->{pgl}{instances};
+    return 0 if scalar grep { $_ eq $inst } @$i;
+    
+    # put new value into the array
+    unshift @$i, $inst;
+    pop @$i;
+
+    return 1;
+}
+
+# main routine: based on attributes specified as argument, return policy decision
+sub smtpd_access_policy($$)
+{
+    my ($self, $now, $attr) = @_;
+
+    # This attribute occurs in connections from the policy-test script,
+    # not in a regular postfix query connection
+    $now = $attr->{policy_test_time} if defined $attr->{policy_test_time};
+
+    # whitelists
+    for my $w (@{$self->{pgl}{whitelist_clients}}) {
+        if($attr->{client_name} =~ $w) {
+            $self->mylog_action($attr, 'pass', 'client whitelist');
+            return 'DUNNO';
+        }
+    }
+    for my $w (@{$self->{pgl}{whitelist_ips}}) {
+        if($attr->{client_address} =~ $w) {
+            $self->mylog_action($attr, 'pass', 'client whitelist');
+            return 'DUNNO';
+        }
+    }
+    for my $w (@{$self->{pgl}{whitelist_cidr}}) {
+        if(cidr_match($w->[0], $w->[1], $attr->{client_address})) {
+            $self->mylog_action($attr, 'pass', 'client whitelist');
+            return 'DUNNO';
+        }
+    }
+    for my $w (@{$self->{pgl}{whitelist_recipients}}) {
+        if($attr->{recipient} =~ $w) {
+            $self->mylog_action($attr, 'pass', 'recipient whitelist');
+            return 'DUNNO';
+        }
+    }
+
+    # Check auto whitelist clients (see below for explanation)
+    my ($cawl_key, $cawl_count, $cawl_last, $cawl_entry);
+    if($self->{pgl}{awl_clients}) {
+        # lookup cawl
+        $cawl_key = $attr->{client_address};
+        if($self->{pgl}{privacy}) {
+            $cawl_key = Digest::SHA1::sha1_hex($cawl_key);
+        }
+        
+        ($cawl_count, $cawl_last, $cawl_entry) = $self->ldap_cawl_lookup($cawl_key);
+                
+        # let through if count is enough
+        if(defined $cawl_count and $cawl_count >= $self->{pgl}{awl_clients})
+        {
+            if($now >= $cawl_last + $self->{pgl}{awl_window}) {
+                $cawl_count++; # for statistics
+                $self->ldap_cawl_update2($cawl_count, $now, $cawl_key, $cawl_entry);
+            }
+            $self->mylog_action($attr, 'pass', 'client AWL');
+            return 'DUNNO';
+        }
+    }
+
+    # lookup: prepare data
+    my $sender = lc($self->do_sender_substitutions($attr->{sender}));
+    my $recip  = lc($attr->{recipient});
+    my ($client_net, $client_host) =
+        $self->do_client_substitutions($attr->{client_address}, $attr->{client_name});
+    if($self->{pgl}{privacy}) {
+        $sender     = Digest::SHA1::sha1_hex($sender);
+        $recip      = Digest::SHA1::sha1_hex($recip);
+        $client_net = Digest::SHA1::sha1_hex($client_net);
+    }
+
+    my ($first, $last, $trip_entry) = $self->ldap_triplet_lookup($client_net, $sender, $recip);
+    
+    my $last_was_successful=0;
+    if(defined $first) {
+    	$self->mylog(1, " Back from ldap_triplet_lookup. I actually got back: $first, $last");
+        # find out if the last time was unsuccessful, so that we can add a header
+        # to say how much had to be waited
+        if($last - $first >= $self->{pgl}{delay}) {
+            $last_was_successful=1;
+        }
+        else {
+            # discard stored first-seen if it is the first retrial and
+            # it is beyond the retry_window
+            $first = $now if $now-$first > $self->{pgl}{config}->param("retry-window");
+        }
+    }
+    else {
+    	$self->mylog(1, " Back from ldap_triplet_lookup. Was empty. Greylisting.");
+        $first = $now;
+    }
+
+    # update
+    if(not defined $last) {
+    	$self->ldap_triplet_create(
+    		$client_net, $sender, $recip,
+            $client_host, $first, $now, $now-$first
+        );
+    }
+    else {
+        $self->ldap_triplet_update(
+            $client_host, $first, $now, $now-$first,
+            $client_net, $sender, $recip, $trip_entry
+        );
+    }
+
+    my $diff = $self->{pgl}{delay} - ($now - $first);
+
+$self->mylog(1, "AWL Check. diff: $diff: last_was_successful: $last_was_successful");
+    # auto whitelist clients
+    # algorithm:
+    # - on successful entry in the greylist db of a triplet:
+    #   - client not whitelisted yet? -> increase count, whitelist if count > 10 or so
+    #   - client whitelisted already? -> update last-seen timestamp
+    if($self->{pgl}{awl_clients}) {
+        # greylisting succeeded
+        if($diff <= 0 and !$last_was_successful) {
+            # enough time has passed (record only one attempt per window)
+            if(! defined $cawl_last or $now >= $cawl_last + $self->{pgl}{awl_window}) {
+                # ok, increase count
+                $cawl_count++;
+                # log if client has reached the count and is now whitelisted
+                my $cawl_first_t = undef;
+                if($cawl_count==$self->{pgl}{awl_clients}) {
+                    my $client = $attr->{client_name} ?
+                        $attr->{client_name}.'['.$attr->{client_address}.']' :
+                        $attr->{client_address};
+                    $self->mylog(1, "whitelisted: $client");
+                    $cawl_first_t = $now;
+                }
+                # cawl database: insert or update
+                if($cawl_count==1) {
+                	$self->ldap_cawl_create(
+                		$cawl_key, $cawl_count, $cawl_first_t, $now
+                	);
+                }
+                else {
+                	$self->ldap_cawl_update(
+                		$cawl_count, $now, $cawl_key, $cawl_first_t, $cawl_entry
+                	);
+                }
+            }
+        }
+    }
+
+    # not enough waited? -> greylist
+    if ($diff > 0 ) {
+        my $msg = $self->{pgl}{greylist_text};
+        # Workaround for an Exchange bug related to Greylisting:
+        # use DSN 4.2.0 instead of the default 4.7.1. This works
+        # only with Postfix 2.3 though and we know that Postfix >= 2.3
+        # always defines the etrn_domain attribute (is this really true and
+        # guaranteed in future versions? I don't know...)
+        $msg = '4.2.0 ' . $msg if defined $attr->{etrn_domain} and
+                          $msg !~ /^\d/;
+        $msg =~ s/\%s/$diff/g;
+        my $recip_domain = $attr->{recipient}; $recip_domain =~ s/.*\@//;
+        #lets make this greedy. Why not?
+        $msg =~ s/\%r/$recip_domain/g;
+        $self->mylog_action($attr, 'greylist',
+            $now != $first ? "early-retry (${diff}s missing)" : "new"
+            );
+        return "$self->{pgl}{greylist_action} $msg";
+    }
+
+    # X-Greylist header:
+    if(!$last_was_successful and $self->is_new_instance($attr->{instance})) {
+        # syslog
+        my $client = ($attr->{client_name} and $attr->{client_name} ne 'unknown') ?
+                     $attr->{client_name} : $attr->{client_address};
+
+        # add X-Greylist header
+        my $date = strftime("%a, %d %b %Y %T %Z", localtime);
+        $self->mylog_action($attr, 'pass', 'triplet found', 'delay='.($now-$first));
+        return 'PREPEND X-Greylist: delayed '.($now-$first).
+            " seconds by postgrey-$VERSION at $self->{pgl}{hostname}; $date";
+    }
+
+    $self->mylog_action($attr, 'pass', 'triplet found');
+    return 'DUNNO';
+}
+
+sub dump_whitelists() {
+	my ($self) = @_;
+	$self->mylog(1, "> dump_whitelists()");
+	
+	$self->mylog(1, "     Whitelist_Recipients:");
+	$self->mylog(1, Dumper $self->{pgl}{whitelist_recipients});
+	
+	$self->mylog(1, "     Whitelist_Clients :");
+	$self->mylog(1, "          clients :");
+	$self->mylog(1, Dumper $self->{pgl}{whitelist_clients});
+	$self->mylog(1, "          ips :");
+	$self->mylog(1, Dumper $self->{pgl}{whitelist_ips});
+	$self->mylog(1, "          cidr :");
+	$self->mylog(1, Dumper $self->{pgl}{whitelist_cidr});
+}
+
+sub main()
+{
+    # save arguments for Net:Server HUP restart
+    my @ARGV_saved = @ARGV;
+
+    # do not output any localized texts!
+    setlocale(LC_ALL, 'C');
+
+    # parse options
+    my %opt = ();
+    my $Config;
+    
+    GetOptions(\%opt, 'help|h', 
+    	    'man', 
+    	    'version', 
+    	    'noaction|no-action|n',
+    	    'config=s',
+    	    'dumpconfig',
+    	    'dumpwhitelist'
+    ) or exit(1);
+
+    if($opt{help})     { pod2usage(1) }
+    if($opt{man})      { pod2usage(-exitstatus => 0, -verbose => 2) }
+    if($opt{version})  { print "postgreyldap $VERSION\n"; exit(0) }
+    if($opt{noaction}) { die "ERROR: don't know how to \"no-action\".\n" }
+
+    unless (defined ($opt{'config'})) {
+    	print "ERROR: --config must be specified\n";
+    	pod2usage(1);
+    }
+    
+    # Load the config file
+    $Config = new Config::Simple();
+	$Config->read($opt{'config'}) || 
+		die ("Error reading config file: " . $Config->error());
+		
+	$Config->param("server") || die ("No 'server' set in LDAP configuration\n");
+	$Config->param("dn") || die ("No 'dn' set in LDAP configuration\n");
+	$Config->param("version") || $Config->param("version", 3);
+	$Config->param("password") || die ("No 'password' set in LDAP configuration\n");
+	
+	$Config->param("version") eq 3 || $Config->param("version") eq 2 ||
+		die ("LDAP version must be 2 or 3");
+	
+    defined $Config->param("unix") or defined $Config->param("inet") or
+        die "ERROR: unix or inet must be specified\n";
+        
+
+    # bind only localhost if no host is specified
+    if(defined $Config->param("inet") and $Config->param("inet")=~/^\d+$/) {
+        $Config->param("inet", "localhost:" . $Config->param("inet"));
+    }
+
+    # retry window
+    my $retry_window = 24*3600*2; # default: 2 days
+    if(defined $Config->param("retry-window")) {
+    	my $x = $Config->param("retry-window");
+        if($x =~ /^(\d+)h$/i) {
+            $Config->param("retry-window", $1 * 3600);
+        }
+        elsif($x =~ /^(\d+)d?$/) {
+            $Config->param("retry-window", $1 * 24 * 3600);
+        }
+        else {
+            die "ERROR: retry-window must be either a number of days or a number\n",
+                "       followed by 'h' for hours ('6h' for example).\n",
+                "		Was: " . $Config->param("retry-window");
+        }
+    }
+
+    unless ($Config->param("lockdir")) {
+    	$Config->param("lockdir", $DEFAULT_LOCKDIR);
+    }
+
+    # determine proper "logsock" for Sys::Syslog
+    my $syslog_logsock;
+    if(defined $Sys::Syslog::VERSION and $Sys::Syslog::VERSION ge '0.15'
+    and defined $Net::Server::VERSION and $Net::Server::VERSION ge '0.97') {
+        # use 'native' when Sys::Syslog >= 0.15
+        $syslog_logsock = 'native';
+    } elsif($^O eq 'solaris') {
+        # 'stream' is broken and 'unix' doesn't work on Solaris: only 'inet'
+        # seems to be useable with Sys::Syslog < 0.15
+        $syslog_logsock = 'inet';
+    } else {
+        $syslog_logsock = 'unix';
+    }
+
+	#Cleanup our configuration settings. In most cases, we will silently
+	#ignore errors, and set to the default.
+	#
+	#This is possibly slightly evil, but we do give the option of dumping
+	#the config, as we will actually use it.
+	
+	
+    # Workaround: Net::Server doesn't allow for a value of 'listen' higher than 999
+    if(defined $Config->param("listen-queue-size") and $Config->param("listen-queue-size") > 999) {
+        $Config->param("listen-queue-size", 999);
+    }
+    
+    if(defined $Config->param("daemonize") && $Config->param("daemonize") =~ /(false|no)/i ) {
+		$Config->param("daemonize", 0);
+    } else {
+    	$Config->param("daemonize", 1);
+    }
+    
+    if(defined $Config->param("privacy") && $Config->param("privacy") =~ /(true|yes)/i ) {
+		$Config->param("privacy", 1);
+		# --privacy requires Digest::SHA1
+        require Digest::SHA1;
+    } else {
+    	$Config->param("privacy", 0);
+    }
+    
+    unless ($Config->param("log-level") =~ /^(1|2|3)$/) {
+    	$Config->param("log-level", 1);
+    }
+    
+    unless (defined $Config->param("lookup-by") && $Config->param("lookup-by") =~ /^subnet$/i) {
+    	$Config->param("lookup-by", "host");
+    }
+    
+    if (!(defined $Config->param("auto-whitelist-clients")) || (!($Config->param("auto-whitelist-clients") =~ /^(\d+)$/)) ){
+    	$Config->param("auto-whitelist-clients", 5);
+    }
+    
+    if (!(defined $Config->param("auto-whitelist-window")) || (!($Config->param("auto-whitelist-window") =~ /^(\d+)$/)) ){
+    	$Config->param("auto-whitelist-window", 60);
+    }
+    
+	unless (defined $Config->param("user")) {
+    	$Config->param("user", "postgreyldap");
+    }
+    
+    unless (defined $Config->param("group")) {
+    	$Config->param("group", "nogroup");
+    }
+
+    unless (defined $Config->param("greylist-action")) {
+    	$Config->param("greylist-action", "DEFER_IF_PERMIT");
+    }
+
+    unless (defined $Config->param("greylist-text")) {
+    	$Config->param("greylist-text", "Greylisted, see http://postgrey.schweikert.ch/help/%r.html");
+    }
+    
+    unless (defined $Config->param("hostname")) {
+    	$Config->param("hostname", hostname);
+    }
+    
+    unless (defined $Config->param("whitelist-clients")) {
+    	$Config->param("whitelist-clients", 
+                [ "$CONFIG_DIR/postgrey_whitelist_clients" ,
+                  "$CONFIG_DIR/postgrey_whitelist_clients.local" ])
+    }
+    
+    unless (defined $Config->param("whitelist-recipients")) {
+    	$Config->param("whitelist-recipients",  [ "$CONFIG_DIR/postgrey_whitelist_recipients" ] );
+    }
+    
+    if (defined $opt{"dumpconfig"}) {
+    	print $Config->as_string();
+    	exit unless (defined $opt{"dumpwhitelist"});
+    }
+    
+    unless (defined $Config->param("max-age")) {
+    	$Config->param("max-age", 35);
+    }
+    $Config->param("max-age", $Config->param("max-age")*3600*24);
+    
+    # create Net::Server object and run it
+    my $server = bless {
+        server => {
+            commandline      => [ $0, @ARGV_saved ],
+            port             => [ $Config->param("inet") ? $Config->param("inet") : $Config->param("unix")."|unix" ],
+            proto            => $Config->param("inet") ? 'tcp' : 'unix',
+            user             => $Config->param("user"),
+            group            => $Config->param("group"),
+            setsid           => $Config->param("daemonize"),
+            pid_file         => defined $Config->param("pidfile") ? $Config->param("pidfile") : undef,
+            log_level        => $Config->param("log-level"),
+            log_file         => $Config->param("daemonize") ? 'Sys::Syslog' : undef,
+            syslog_logsock   => $syslog_logsock,
+            syslog_facility  => 'mail',
+            syslog_ident     => 'postgreyldap',
+            listen           => $Config->param("listen-queue-size"),
+        },
+        pgl => {
+            delay            => $Config->param("delay")     || 300,
+            max_age          => $Config->param("max-age"),
+            config      	 => $Config,
+            last_maintenance => time,
+            last_maint       => time,
+            lookup_by_host   => $Config->param("lookup-by") eq "host",
+            awl_clients      => $Config->param("auto-whitelist-clients"),
+            awl_window		 => $Config->param("auto-whitelist-window"), 
+            greylist_action  => $Config->param("greylist-action"),
+            greylist_text    => $Config->param("greylist-text"),
+            whitelist_clients_files    => [$Config->param("whitelist-clients")],
+            whitelist_recipients_files => [$Config->param("whitelist-recipients")],
+            privacy          => $Config->param("privacy"),
+            hostname         => $Config->param("hostname"),
+            exim 			 => defined $Config->param("exim"),
+            ldap_base		 => $Config->param('base'), #we need this enough that quick access is nice.
+        },
+    }, 'postgreyldap';
+
+	$server->ldap_init();
+
+    # read whitelist
+    $server->read_clients_whitelists();
+    $server->read_recipients_whitelists();
+
+	if (defined $opt{"dumpwhitelist"}) {
+		$server->dump_whitelists();
+		exit;
+	}
+
+    $0 = join(' ', @{$server->{server}{commandline}});
+    $server->run;
+
+    # shouldn't get here
+    $server->mylog(1, "Exiting!");
+    exit 1;
+}
+
+##### Net::Server::Multiplex methods:
+
+# reload whitelists on HUP
+sub sig_hup {
+    my $self = shift;
+    $self->mylog(1, "HUP received: reloading whitelists...");
+    $self->read_clients_whitelists();
+    $self->read_recipients_whitelists();
+}
+
+sub post_bind_hook()
+{
+    my ($self) = @_;
+
+    # unix socket permissions should be 666
+    if($self->{server}{port}[0] =~ /^(.*)\|unix$/) {
+        chmod 0666, $1;
+    }
+}
+
+sub pre_loop_hook()
+{
+    my ($self) = @_;
+    
+$self->mylog(1, ">> pre_loop_hook()");
+
+    # be sure to put in syslog any warnings / fatal errors
+    if($self->{server}{log_file} eq 'Sys::Syslog') {
+        $SIG{__WARN__} = sub { Sys::Syslog::syslog('warning', '%s', "WARNING: $_[0]") };
+        $SIG{__DIE__}  = sub { Sys::Syslog::syslog('crit', '%s', "FATAL: $_[0]"); die @_; };
+    }
+
+    # write files with mode 600
+    umask 0077;
+
+    # ensure that only one instance of postgrey is running
+    my $lock = $self->{pgl}{config}->param("lockdir") . "/postgrey.lock";
+    open(LOCK, ">>$lock") or die "ERROR: can't open lock file: $lock : " . $_ . "\n";
+    flock(LOCK, LOCK_EX|LOCK_NB) or die "ERROR: locked: $lock\n";
+
+    $self->do_maintenance(time);
+    
+}
+
+sub mux_input()
+{
+    my ($self, $mux, $fh, $in_ref) = @_;
+    defined $self->{postgrey_attr} or $self->{postgrey_attr} = {};
+    my $attr = $self->{postgrey_attr};
+    my $transaction_time = time;
+
+    # consume entire lines
+    while ($$in_ref =~ s/^([^\r\n]*)\r?\n//) {
+        next unless defined $1;
+        my $in = $1;
+        if($in =~ /([^=]+)=(.*)/) {
+            # read attributes
+            $attr->{substr($1, 0, 512)} = substr($2, 0, 512);
+        }
+        elsif($in eq '') {
+            defined $attr->{request} or $attr->{request}='';
+            if($attr->{request} ne 'smtpd_access_policy') {
+                $self->{net_server}->mylog(0, "unrecognized request type: '$attr->{request}'");
+            }
+            else {
+                my $now = time;
+
+                # decide
+                my $action = $self->{net_server}->smtpd_access_policy($now, $attr);
+
+                # give answer
+                print $fh "action=$action\n\n";
+
+                # cleanup and commit if enough time has passed
+                if($now-$self->{net_server}{pgl}{last_maintenance} >= 60) {
+                    $self->{net_server}->do_maintenance($now);
+                    $self->{net_server}{pgl}{last_maintenance} = $now;
+                }
+
+                # close the filehandle if --exim is set
+                if ($self->{net_server}{pgl}{exim}) {
+                    close($fh);
+                    last;
+                } 
+            }
+            $self->{postgrey_attr} = {};
+        }
+        else {
+            $self->{net_server}->mylog(1, "ignoring garbage: <".substr($in, 0, 100).">");
+        }
+    }
+}
+
+sub fatal_hook()
+{
+    my ($self, $error, $package, $file, $line) = @_;
+    # Net::Server calls $self->server_close but, unfortunately,
+    # it does exit(0) (with Net::Server 0.97)...
+    # It is however useful for init-script to detect non-zero exit codes
+    die('ERROR: ' . $error);
+}
+
+sub pre_server_close_hook()
+{
+    my ($self) = @_;
+    $self->{pgl}{dbh}->commit() if defined $self->{pgl}{dbh};
+}
+
+main;
+
+__END__
+
+=head1 NAME
+
+postgreyldap - LDAP Backed Postfix Greylisting Policy Server
+
+=head1 SYNOPSIS
+
+B<postgreyldap> [I<options>...]
+
+ -h, --help           display this help and exit
+     --version        output version information and exit
+     --config         Full path to config file
+     --dumpconfig     Prints the configuration, and then exits.
+                      Useful to display the conf that would be used, after 
+                      applying defaults and cleaning up options.
+     --dumpwhitelist  Prints the process and complete whitelists, as read
+                      in from LDAP and/or files.					
+
+
+=head1 DESCRIPTION
+
+PostgreyLDAP is a Postfix policy server implementing greylisting, backed by an LDAP server.
+
+When a request for delivery of a mail is received by Postfix via SMTP, the
+triplet C<CLIENT_IP> / C<SENDER> / C<RECIPIENT> is built. If it is the first
+time that this triplet is seen, or if the triplet was first seen less than
+B<delay> seconds (300 is the default), then the mail gets rejected with a
+temporary error. Hopefully spammers or viruses will not try again later, as it
+is however required per RFC.
+
+Note that you shouldn't use the B<lookup-by host> setting unless you know what
+you are doing: there are a lot of mail servers that use a pool of addresses to
+send emails, so that they can change IP every time they try again. That's why
+without this option postgrey will strip the last byte of the IP address when
+doing lookups in the database.
+
+=head2 Installation
+
+=over 4
+
+=item *
+
+Create a C<postgreyldap> user and the directory where to put the database B<lockdir>
+(default: C</var/spool/postfix/postgrey>)
+
+=item *
+
+Write an init script to start postgrey at boot and start it. Like this for example:
+
+ postgreyldap --config /etc/postfix/postgreyldap.conf
+
+=item *
+
+Put something like this in /etc/main.cf:
+
+ smtpd_recipient_restrictions =
+               permit_mynetworks
+               ...
+               reject_unauth_destination
+               check_policy_service inet:127.0.0.1:10023
+
+=item *
+
+Install the provided postgrey_whitelist_clients and
+postgrey_whitelist_recipients in /etc/postfix.
+
+=item *
+
+Put in /etc/postfix/postgrey_whitelist_recipients users that do not want
+greylisting.
+
+=back
+
+=head2 Whitelists
+
+Whitelists allow you to specify client addresses or recipient address, for
+which no greylisting should be done. Per default postgreyldap will read the
+following files:
+
+ /etc/postfix/postgrey_whitelist_clients
+ /etc/postfix/postgrey_whitelist_clients.local
+ /etc/postfix/postgrey_whitelist_recipients
+ 
+This can be set with B<whitelist-clients> and B<whitelist-recipients>
+
+You can specify alternative paths in the configuration file, or use the
+special keyword of "LDAP" to also search LDAP for whitelists.
+
+PostgreyLDAP whitelists follow similar syntax rules as Postfix access tables.
+The following can be specified for B<recipient addresses>:
+
+=over 10
+
+=item domain.addr
+
+C<domain.addr> domain and subdomains.
+
+=item name@
+
+C<name@.*> and extended addresses C<name+blabla@.*>.
+
+=item name@domain.addr
+
+C<name@domain.addr> and extended addresses.
+
+=item /regexp/
+
+anything that matches C<regexp> (the full address is matched).
+
+=back
+
+The following can be specified for B<client addresses>:
+
+=over 10
+
+=item domain.addr
+
+C<domain.addr> domain and subdomains.
+
+=item IP1.IP2.IP3.IP4
+
+IP address IP1.IP2.IP3.IP4. You can also leave off one number, in
+which case only the first specified numbers will be checked.
+
+=item IP1.IP2.IP3.IP4/MASK
+
+CIDR-syle network. Example: 192.168.1.0/24
+
+=item /regexp/
+
+anything that matches C<regexp> (the full address is matched).
+
+=back
+
+=head2 Auto-whitelisting clients
+
+This is enabled by default.
+
+By setting B<auto-whitelist-clients> to some number, a client IP address will be
+automatically whitelisted if the following conditions are met:
+
+=over 4
+
+=item *
+
+At least 5 successfull attempts of delivering a mail (after greylisting was
+done). That number can be changed by specifying a number after the
+B<auto-whitelist-clients> argument. 
+
+=item *
+
+Only one attempt per hour, by default, counts. This window can be changed with
+the auto-whitelist-window setting.
+
+=item *
+
+The client was last seen before max-age days (35 per default).
+
+=back
+
+=head2 Greylist Action
+
+To set the action to be returned to postfix when a message fails
+postgrey's tests and should be deferred, use the
+B<greylist-action> option.
+
+By default, postgreyldap returns DEFER_IF_PERMIT, which causes postfix to
+check the rest of the restrictions and defer the message only if it
+would otherwise be accepted.  A delay action of 451 causes postfix to
+always defer the message with an SMTP reply code of 451 (temp fail).
+
+See the postfix manual page access(5) for a discussion of the actions
+allowed.
+
+=head2 Greylist Text
+
+When a message is greylisted, an error message like this will be sent at the
+SMTP-level:
+
+ Greylisted, see http://postgrey.schweikert.ch/help/example.com.html
+
+Usually no user should see that error message and the idea of that URL is to
+provide some help to system administrators seeing that message or users of
+broken mail clients which try to send mails directly and get a greylisting
+error. Note that the default help-URL contains the original recipient domain
+(example.com), so that domain-specific help can be presented to the user (on
+the default page it is said to contact postmaster@example.com)
+
+You can change the text (and URL) with the B<greylist-text> parameter. The
+following special variables will be replaced in the text:
+
+=over 4
+
+=item %s
+
+How many seconds left until the greylisting is over (300).
+
+=item %r
+
+Mail-domain of the recipient (example.com).
+
+=back
+
+=head2 Privacy
+
+The B<privacy> option enable the use of a SHA1 hash function to store
+IPs and emails in the greylisting database.  This will defeat straight
+forward attempts to retrieve mail user behaviours.
+
+=head2 SEE ALSO
+
+See L<http://www.greylisting.org/> for a description of what
+greylisting is and L<http://www.postfix.org/SMTPD_POLICY_README.html>
+for a description of how Postfix policy servers work.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2004-2007 by ETH Zurich. All rights reserved.
+Copyright (c) 2007 by Open Systems AG. All rights reserved.
+Copyright (2) 2012 by Jeff Warnica. All rights reserved.
+
+=head1 LICENSE
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+=head1 AUTHOR
+
+S<Jeff Warnica E<lt>jeff@coherentnetworksolutions.com<E<gt>>
+
+=head1 BASED ON .. which is to say, largely stolen from:
+
+Postgrey, by S<David Schweikert E<lt>david@schweikert.chE<gt>>
+
+=cut
+

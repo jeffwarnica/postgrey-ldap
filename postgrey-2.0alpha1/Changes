@@ -1,0 +1,248 @@
+* 2007-10-10: version 2.00alpha1
+
+   - use SQLite instead of BerkeleyDB as DB-backend
+
+* 2007-09-06: version 1.31
+
+   - support CIDR-style addresses in the client whitelist (Claudio Strizzolo)
+   - improve logging of unresolveable hosts (Adrian von Bidder, Heiko
+     Schlichting)
+   - updated whitelist
+   - fix unix socket permission issues (Martin F Krafft, Adrian von Bidder,
+     Leos Bitto, Debian bug #376910)
+   - fix regexps for matching hosts in whitelists (Antonello Nocchi)
+   - do maintenance after the current request and not before (Clifton Royston)
+
+* 2007-08-02: version 1.30
+
+   - implemented --listen-queue-size option (you usually don't need to set it
+     except for big sites).
+   - small fix to the 'native' syslogging implemented in 1.29
+
+* 2007-07-23: version 1.29
+
+   - workaround for a possible crash with Sys::Syslog < 0.15 when syslog
+     messages were generated during syslog file rotation
+   - use the 'native' logging socket with Sys::Syslog >= 0.15 (Philipp Koller)
+ 
+* 2007-06-21: version 1.28
+
+   - improved logging (postgrey is now more verbose, use the new --quiet
+     option if that bothers you)
+   - improved Exim support (see Debian bug #380257)
+   - workaround for a bug in Exchange dealing with temporary failures
+     (use DSN code 4.2.0 instead of the default 4.7.1)
+   - added 'policy-test' script for testing postgrey's performance or pre-seeding
+     the database
+   - fix logging of delayed, unresolveable clients in syslog (Andreas Metzler)
+   - more descriptive error message on DB failure (Adrian von Bidder)
+   - updated whitelist
+   - new homepage: http://postgrey.schweikert.ch/
+
+* 2006-07-17: version 1.27
+
+   - fix socket permissions with Net::Server >= 0.94 (Leos Bitto)
+
+* 2006-07-12: version 1.26
+
+   - added support for Exim (Guy Antony Halse)
+   - greatly improve cleanup speed with explicit transactions (Maeda Atusi)
+
+* 2006-06-29: version 1.25
+
+   - updated whitelist
+   - bugfix: --privacy was not working
+   - change default greylist-text not to include the number of
+     seconds left, since it seems that spammers are misusing it.
+   - added --hostname option (Maarten de Vries)
+
+* 2006-01-16: version 1.24
+
+   - updated whitelist with many new entries (Vito Robar)
+   - added --privacy option (Micah Anderson)
+   - don't use DB_TXN_NOSYNC to workaround an apparent bug in Berkeley-DB
+     (Nick Moffitt)
+   - fix use of unitialized value (Bjoern A. Zeeb)
+   - Use 'permit_mynetworks' in the documentation (Keith Lofstrom)
+
+* 2005-11-23: version 1.23
+
+   - fix compatibility with Berkeley-DB < 4.1
+   - fix crash in the database-cleanup routine (Vito Robar)
+   - updated whitelist
+   - don't be pedantic about wrong reverse-dns entries: it doesn't really help
+     and it could affect legitimate mail servers (Andreas Hoedle)
+
+* 2005-11-11: version 1.22
+
+   - compatibility for log() of Net::Server 0.88
+   - don't enter triplets for auto-whitelisted clients (reduce size of main db)
+   - updated whitelist
+   - replace log() with mylog() so that we don't need to worry about
+     format-string problems again
+   - add support for IPv6 in whitelists (Adrian Knoth)
+   - the --dbdir option was not working because of taint-mode (Sven Mueller)
+   - allow comments on the same line (Nigel Gorry)
+
+* 2005-04-14: version 1.21
+
+   Security: this release fixes a remotely exploitable DoS vulnerability
+   (CVE-2005-1127)
+
+   - fix crash with '%' in sender addresses (Stefan Schmidt)
+   - fix other users of unchecked strings with syslog/printf (Peter Bieringer)
+   - run in tainted mode -T (Peter Bieringer)
+     (version 1.19 and 1.20 were released on the same day with the above fixes)
+
+* 2005-03-07: version 1.18
+
+   - correctly set the locale to C so that no internationalized 8bit-text
+     is put in the headers (Bernhard Weisshuhn)
+   - syslog delays (when a X-Greylist header is added)
+   - bugfix: sometimes the retry-window was not properly enforced
+   - bugfix: argument parsing in postgreyreport (MJH)
+   - include the recipient-domain in the default --greylist-text so
+     that the concerned mail-server can be determined and a contact-address
+     can be given on the help page
+   - better documentation for --greylist-text
+   - just warn if DB_AUTO_COMMIT is not available because an older berkeley-db
+     is used (Adrian 'Dagurashibanipal' von Bidder)
+
+* 2004-12-14: version 1.17
+
+   - added --auto-whitelist-clients option (Andreas Hoedle)
+     it is turned on by default, to disable it specify
+     --auto-whitelist-clients=0
+   - removed "transition code" of version 1.14
+   - command-line as process name instead of just 'perl' (Pierre Thierry)
+   - add option --group or set group to 'nogroup' (Adrian 'Dagurashibanipal'
+     von Bidder)
+
+* 2004-09-08: version 1.16
+   
+   - increase max-time to 35, so that monthly newsletter are not
+     greylisted (Stephen Gildea)
+   - set LC_ALL=C so that no localized text is output at the SMTP level
+     (Michal Trojnara)
+   - add a "help" URL to the Greylisted for ... message (Steve Traugott)
+   - updated whitelist
+
+* 2004-08-18: version 1.15
+
+  - fixed --retry-window with hours (Tom Baker)
+  - update postgreyreport to version 1.14.2 (Tom Baker)
+  - update whitelist
+
+* 2004-07-12: version 1.14
+
+  - lookup-by-subnet is default. "transition code" has been implemented, so that
+    also a lookup with the unstripped IP will be tried. That way you shouldn't
+    loose any data from the database when moving to version 1.14. Use
+    --lookup-by-host for the old behaviour. All "address pool" entries are
+    removed from the whitelist...
+  - loosen "IP in reverse name" test (Matt Egan)
+  - changed default --max-age to 30, since the db should shrink a lot
+    because of the --retry-window functionality (you might want to
+    db_dump/db_load your db to make it really shrink on disk)
+  - another Perl 5.8.0 workaround
+  - implemented --greylist-text (Tom Baker)
+  - replaced X-Postgrey header with a X-Greylist header which is more similar
+    to what greylist-milter does (Stephen Gildea)
+  - implemented --greylist-action (Stephen Gildea)
+  - updated postgreyreport (Tom Baker)
+  - update whitelist
+
+* 2004-07-05: version 1.13
+
+  - strip sender address extension (everything after '+'), so that more
+    VERP addresses are substituted to a unique string.
+    (Stephane Bortzmeyer, Santiago Vila)
+  - update whitelist
+  - allow more than one --whitelist-xy option (Xavier Le Vourch)
+  - implemented --retry-window (Tom Baker)
+  - reload whitelists on HUP
+  - add postmaster and abuse to recipients whitelist
+  - add X-Postgrey header to delayed mails
+
+* 2004-07-02: version 1.12
+
+  - support IPs in the postgrey_whitelist_clients file (Tom Baker)
+  - new version of postgreyreport (Tom Baker)
+  - update whitelist
+  - workaround Perl 5.8.0 bug (Matt Egan)
+
+* 2004-06-29: version 1.11
+
+  - support for regular expressions in whitelists
+  - update whitelist (Duncan Hill)
+
+* 2004-06-26: version 1.10
+
+  - fix syntax error in code for --lookup-by-subnet (Matt Egan)
+
+* 2004-06-25: version 1.9
+
+  - case-insensitive whitelists
+  - fix permissions of --unix socket (Arnaud Launay)
+
+* 2004-06-24: version 1.8
+
+  - postfix-style syntax for whitelists
+  - add .0 on --lookup-by-subnet (Tom Baker)
+
+* 2004-06-24: version 1.7
+
+  - bugfix: wrong syslog call ('warn' instead of 'warning')
+  - update whitelist
+  - allow input with cr-lf lines for testing (Tom Baker)
+  - implemented --lookup-by-subnet (Tom Baker)
+  - use 'unix' syslog socket on non-solaris platforms (Matt Egan)
+  - implemented whitelist support from postgrey itself (instead of using
+    postfix restrictions: easier to setup)
+  - included contrib/postgrey-report by Tom Baker
+
+* 2004-06-11: version 1.6
+
+  - rewritten verp substitution code
+  - when doing keys maintenance: report about how many keys there where before
+    and after.
+  - update whitelist
+
+* 2004-06-03: version 1.5
+
+  - default delay is now 300 seconds instead of 600 (received reports of
+    mailers that try again the first time after 8 minutes and it doesn't seem
+    to matter right now for filtering spam: they never come again)
+  - report in the log the real time that is left, after which the triplet will
+    be accepted
+  - traverse the database for cleaning old entries only during the night
+    and only once per day
+  - more efficient traversal of database for cleaning (Matthew Reimer)
+  - fix syslogging of warnings and fatal errors
+
+* 2004-05-24: version 1.4
+
+  - log removal was not working (need to call txn_checkpoint first)
+
+* 2004-05-22: version 1.3
+
+  - PID file generation with --pidfile (Ralf Engelschall)
+  - fix opening of unix socket (Ralf Engelschall)
+
+* 2004-05-21: version 1.2
+
+  - create files readable only by the user (umask 077)
+  - logging bugfixes
+  - compatibility with older Berkeley DBs (3.x should work)
+
+* 2004-05-21: version 1.1
+
+  - use log_archive method every hour instead of DB_LOG_AUTOREMOVE
+  - cosmetic fixes (Ralf Hildebrandt)
+
+* 2004-05-20: version 1.0
+
+  - initial public release
+
+Note: The names in braces do usually give credit where the idea comes from
+      and not who did implement it (which is mostly me)

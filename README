@@ -1,0 +1,67 @@
+
+    PostgreyLDAP - an LDAP Backed Postfix policy server for greylisting
+    ====================================================================
+
+Based heavily on Postgrey, version 2.0alpha1.
+
+See also Postgrey's homepage:
+
+  http://postgrey.schweikert.ch/
+  
+  
+INSTALL
+
+Quick Start
+
+- Extend your LDAP schema to include the required attributes and object classes.
+  See ldap/README for details
+  
+- Configure an LDAP account for PostgreyLDAP, and (ideally) create an OU for 
+  postgreyldap to use, which the PostgreyLDAP account has access to.  
+  
+- Configure postgreyldap from the provided exmaple config.dist file
+
+- Have postgreyldap start as a system service.
+
+- Possibly migrate file-based whitelists into LDAP.
+ 
+
+Why?
+
+Greylisting is a given, but I have multiple redundant front end mail servers. 
+I'd like their greylist database to be shared, and I currently know of no shared 
+greylisting systems. Google diddn't turn up anything. I suppose that Postgrey 
+itself can listen on the network (so, in turn, can PostgreyLDAP), but this 
+introduces a single point of failure.
+
+Using Postfix, and OpenSuSE, virtually all of the "dynamic" configuration of my
+mail servers is stored in LDAP. LDAP is shared, and distributed, and can handle 
+failures, while continuing to have write access to LDAP. As of OpenLDAP version 
+2.4 multi-master replication is supported, and easy to configure. 
+
+I'm sure that I could get e.g. MySQL to do this, but I'm not running it at all
+on my MX servers, and I'm sure there are others out there with the desire for 
+shared greylisting and who have, or could easily configure, a robust LDAP 
+infrastructure.
+
+
+Why not BerkeleyDB (as per Postgrey <2.0), or SQLITE?
+
+They aren't distributed.
+
+So why not NFS?
+
+I don't want to - can't - rely on a single NFS server for greylisting to work.
+
+Why not MySQL or PostgreSQL?
+
+- My front end routers/MX servers are not currently running either.
+- I have no experience with replicated SQL, and especially no experience with 
+multiple-master replicated SQL.
+
+Why LDAP?
+
+I have multiple mail servers. OpenSuSE (YaST), Postfix, and OpenLDAP make it 
+very easy to use LDAP as the backend for dynamic mail configuration already, 
+which I'm using. OpenSuSE and OpenLDAP make it very easy to configure 
+distributed, replicated, LDAP services.

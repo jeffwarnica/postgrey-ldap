@@ -1,0 +1,23 @@
+dn: cn=PostgreyLDAP,ou=users,dc=example,dc=com
+changetype: add
+displayName: PostgreyLDAP
+objectClass: inetOrgPerson
+sn: PostgreyLDAP
+cn: PostgreyLDAP
+userPassword: password
+
+dn: ou=postgreyldap,dc=example,dc=com
+changetype: add
+objectClass: top
+objectClass: organizationalUnit
+ou: postgreyldap
+
+dn: olcDatabase={1}hdb,cn=config
+changetype: modify
+replace: olcAccess
+olcAccess: to dn.subtree="ou=postgreyldap,dc=example,dc=com" by dn.exact="cn=PostgreyLDAP,ou=users,dc=example,dc=com" write by * read
+olcAccess: to * by group/groupofuniquenames/uniquemember="cn=Directory Administrators,ou=group,dc=example,dc=com" write by * read
+olcAccess: to attrs=userPassword by self write by * auth
+olcAccess: to attrs=shadowLastChange by self write by * read
+olcAccess: to attrs=userPKCS12 by self read by * none
+olcAccess: to * by * read

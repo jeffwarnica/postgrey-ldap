@@ -1,0 +1,637 @@
+dn: cn=southwest.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: southwest.com
+PostgreyWhitelistEntry: southwest.com
+Description: Was imported from files
+Description:  greylisting.org: Southwest Airlines (unique sender, no retry)
+
+dn: cn=scd.yahoo.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: scd.yahoo.com
+PostgreyWhitelistEntry: scd.yahoo.com
+Description: Was imported from files
+Description:  greylisting.org: Yahoo Groups servers (no retry)
+
+dn: cn=isp.belgacom.be,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: isp.belgacom.be
+PostgreyWhitelistEntry: isp.belgacom.be
+Description: Was imported from files
+Description:  greylisting.org: isp.belgacom.be (wierd retry pattern)
+
+dn: cn=ameritradeinfo.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: ameritradeinfo.com
+PostgreyWhitelistEntry: ameritradeinfo.com
+Description: Was imported from files
+Description:  greylisting.org: Ameritrade (no retry)
+
+dn: cn=amazon.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: amazon.com
+PostgreyWhitelistEntry: amazon.com
+Description: Was imported from files
+Description:  greylisting.org: Amazon.com (unique sender with letters)
+
+dn: cn=vger.kernel.org,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: vger.kernel.org
+PostgreyWhitelistEntry: vger.kernel.org
+Description: Was imported from files
+Description:  2004-05-20: Linux kernel mailing-list (unique sender with letters)
+
+dn: cn=karger.ch,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: karger.ch
+PostgreyWhitelistEntry: karger.ch
+Description: Was imported from files
+Description:  2004-06-02: karger.ch, no retry
+
+dn: cn=server-x001.hostpoint.ch,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: server-x001.hostpoint.ch
+PostgreyWhitelistEntry: server-x001.hostpoint.ch
+Description: Was imported from files
+Description:  2004-06-02: lilys.ch, (slow: 4 hours)
+
+dn: cn=gw.bas.roche.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: gw.bas.roche.com
+PostgreyWhitelistEntry: gw.bas.roche.com
+Description: Was imported from files
+Description:  2004-06-09: roche.com (no retry)
+
+dn: cn=mail.hhlaw.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: mail.hhlaw.com
+PostgreyWhitelistEntry: mail.hhlaw.com
+Description: Was imported from files
+Description:  2004-06-09: newsletter (no retry)
+
+dn: cn=prd051.appliedbiosystems.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: prd051.appliedbiosystems.com
+PostgreyWhitelistEntry: prd051.appliedbiosystems.com
+Description: Was imported from files
+Description:  2004-06-09: no retry (reported by Ralph Hildebrandt)
+
+dn: cn=swissre.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: swissre.com
+PostgreyWhitelistEntry: swissre.com
+Description: Was imported from files
+Description:  2004-06-17: swissre.com (no retry)
+
+dn: cn=returns.dowjones.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: returns.dowjones.com
+PostgreyWhitelistEntry: returns.dowjones.com
+Description: Was imported from files
+Description:  2004-06-17: dowjones.com newsletter (unique sender with letters)
+
+dn: cn=domin.switch.ch,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: domin.switch.ch
+PostgreyWhitelistEntry: domin.switch.ch
+Description: Was imported from files
+Description:  2004-06-18: switch.ch (works but personnel is confused by the error)
+
+dn: cn=accor-hotels.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: accor-hotels.com
+PostgreyWhitelistEntry: accor-hotels.com
+Description: Was imported from files
+Description:  2004-06-23: accor-hotels.com (slow: 6 hours)
+
+dn: cn=2F^ms-smtp.*5C.rr5C.com$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^ms-smtp.*5C.rr5C.com$2F
+PostgreyWhitelistEntry: /^ms-smtp.*\.rr\.com$/
+Description: Was imported from files
+Description:  2004-06-29: rr.com (no retry, reported by Duncan Hill)
+
+dn: cn=2F^lake.*mta.*5C.cox5C.net$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^lake.*mta.*5C.cox5C.net$2F
+PostgreyWhitelistEntry: /^lake.*mta.*\.cox\.net$/
+Description: Was imported from files
+Description:  2004-06-29: cox.net (no retry, reported by Duncan Hill)
+
+dn: cn=mot.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: mot.com
+PostgreyWhitelistEntry: mot.com
+Description: Was imported from files
+Description:  2004-06-29: motorola.com (no retry)
+
+dn: cn=nic.fr,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: nic.fr
+PostgreyWhitelistEntry: nic.fr
+Description: Was imported from files
+Description:  2004-07-01: nic.fr (address verification, reported by Arnaud Launay)
+
+dn: cn=2F^s[cv]5Cd2Bpub5C.verizon5C.net$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^s[cv]5Cd2Bpub5C.verizon5C.net$2F
+PostgreyWhitelistEntry: /^s[cv]\d+pub\.verizon\.net$/
+Description: Was imported from files
+Description:  2004-07-01: verizon.net (address verification, reported by Bill Moran and Eric, adapted by Adam C. Mathews)
+
+dn: cn=cs.columbia.edu,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: cs.columbia.edu
+PostgreyWhitelistEntry: cs.columbia.edu
+Description: Was imported from files
+Description:  2004-07-02: cs.columbia.edu (no retry)
+
+dn: cn=66.216.126.174,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 66.216.126.174
+PostgreyWhitelistEntry: 66.216.126.174
+Description: Was imported from files
+Description:  2004-07-02: papersinvited.com (no retry)
+
+dn: cn=2F^mail5Cd2B5C.telekom5C.de$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^mail5Cd2B5C.telekom5C.de$2F
+PostgreyWhitelistEntry: /^mail\d+\.telekom\.de$/
+Description: Was imported from files
+Description:  2004-07-02: telekom.de (slow: 6 hours)
+
+dn: cn=2F^smtp5Cd2B5C.tiscali5C.dk$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^smtp5Cd2B5C.tiscali5C.dk$2F
+PostgreyWhitelistEntry: /^smtp\d+\.tiscali\.dk$/
+Description: Was imported from files
+Description:  2004-07-04: tiscali.dk (slow: 12 hours, reported by Klaus Alexander Seistrup)
+
+dn: cn=freshmeat.net,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: freshmeat.net
+PostgreyWhitelistEntry: freshmeat.net
+Description: Was imported from files
+Description:  2004-07-04: freshmeat.net (address verification)
+
+dn: cn=zd-swx.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: zd-swx.com
+PostgreyWhitelistEntry: zd-swx.com
+Description: Was imported from files
+Description:  2004-07-11: zd-swx.com (unique sender with letters, reported by Bill Landry)
+
+dn: cn=lockergnome.wc09.net,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: lockergnome.wc09.net
+PostgreyWhitelistEntry: lockergnome.wc09.net
+Description: Was imported from files
+Description:  2004-07-11: lockergnome.wc09.net (unique sender with letters, reported by Bill Landry)
+
+dn: cn=p01m168.mxlogic.net,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: p01m168.mxlogic.net
+PostgreyWhitelistEntry: p01m168.mxlogic.net
+Description: Was imported from files
+Description:  2004-07-19: mxlogic.net (no retry, reported by Eric)
+
+dn: cn=p02m169.mxlogic.net,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: p02m169.mxlogic.net
+PostgreyWhitelistEntry: p02m169.mxlogic.net
+Description: Was imported from files
+Description:  2004-07-19: mxlogic.net (no retry, reported by Eric)
+
+dn: cn=2F^fmr5Cd2B5C.intel5C.com$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^fmr5Cd2B5C.intel5C.com$2F
+PostgreyWhitelistEntry: /^fmr\d+\.intel\.com$/
+Description: Was imported from files
+Description:  2004-09-08: intel.com (pool on different subnets) 
+
+dn: cn=2F^fe5Cd2B5C.cox-internet5C.com$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^fe5Cd2B5C.cox-internet5C.com$2F
+PostgreyWhitelistEntry: /^fe\d+\.cox-internet\.com$/
+Description: Was imported from files
+Description:  2004-09-17: cox-internet.com (no retry, reported by Rod Roark)
+
+dn: cn=logismata.ch,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: logismata.ch
+PostgreyWhitelistEntry: logismata.ch
+Description: Was imported from files
+Description:  2004-10-11: logismata.ch (no retry)
+
+dn: cn=brief.cw.reum.de,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: brief.cw.reum.de
+PostgreyWhitelistEntry: brief.cw.reum.de
+Description: Was imported from files
+Description:  2004-11-25: brief.cw.reum.de (no retry, reported by Manuel Oetiker)
+
+dn: cn=qmail.ingeno.ch,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: qmail.ingeno.ch
+PostgreyWhitelistEntry: qmail.ingeno.ch
+Description: Was imported from files
+Description:  2004-12-03: ingeno.ch (no retry)
+
+dn: cn=mail1.thurweb.ch,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: mail1.thurweb.ch
+PostgreyWhitelistEntry: mail1.thurweb.ch
+Description: Was imported from files
+Description:  2004-12-06: rein.ch (no retry)
+
+dn: cn=piggy.rz.tu-ilmenau.de,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: piggy.rz.tu-ilmenau.de
+PostgreyWhitelistEntry: piggy.rz.tu-ilmenau.de
+Description: Was imported from files
+Description:  2005-01-26: tu-ilmenau.de (no retry)
+
+dn: cn=mail.polymed.ch,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: mail.polymed.ch
+PostgreyWhitelistEntry: mail.polymed.ch
+Description: Was imported from files
+Description:  2005-04-06: polymed.ch (no retry)
+
+dn: cn=rz.hu-berlin.de,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: rz.hu-berlin.de
+PostgreyWhitelistEntry: rz.hu-berlin.de
+Description: Was imported from files
+Description:  2005-06-08: hu-berlin.de (slow: 6 hours, reported by Joachim Schoenberg)
+
+dn: cn=proxy.gmail.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: proxy.gmail.com
+PostgreyWhitelistEntry: proxy.gmail.com
+Description: Was imported from files
+Description:  2005-06-17: gmail.com (big pool, reported by Beat Mueller)
+
+dn: cn=cacert.org,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: cacert.org
+PostgreyWhitelistEntry: cacert.org
+Description: Was imported from files
+Description:  2005-06-23: cacert.org (address verification, reported by Martin Lohmeier)
+
+dn: cn=polytech.univ-mrs.fr,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: polytech.univ-mrs.fr
+PostgreyWhitelistEntry: polytech.univ-mrs.fr
+Description: Was imported from files
+Description:  2005-07-27: polytech.univ-mrs.fr (no retry, reported by Giovanni Mandorino)
+
+dn: cn=gnu.org,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: gnu.org
+PostgreyWhitelistEntry: gnu.org
+Description: Was imported from files
+Description:  2005-08-05: gnu.org (address verification, reported by Martin Lohmeier)
+
+dn: cn=cs.ciphire.net,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: cs.ciphire.net
+PostgreyWhitelistEntry: cs.ciphire.net
+Description: Was imported from files
+Description:  2005-08-17: ciphirelabs.com (needs fast responses, reported by Sven Mueller)
+
+dn: cn=2F^gateway5Cd2B5C.np45C.de$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^gateway5Cd2B5C.np45C.de$2F
+PostgreyWhitelistEntry: /^gateway\d+\.np4\.de$/
+Description: Was imported from files
+Description:  2005-11-11: lufthansa (no retry, reported by Peter Bieringer)
+
+dn: cn=2F^mail-in-5Cd2B5C.arcor-online5C.net$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^mail-in-5Cd2B5C.arcor-online5C.net$2F
+PostgreyWhitelistEntry: /^mail-in-\d+\.arcor-online\.net$/
+Description: Was imported from files
+Description:  2005-11-23: arcor-online.net (slow: 12 hours, reported by Bernd Zeimetz)
+
+dn: cn=netsolmail.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: netsolmail.com
+PostgreyWhitelistEntry: netsolmail.com
+Description: Was imported from files
+Description:  2005-12-29: netsolmail.com (no retry, reported by Gareth Greenaway)
+
+dn: cn=193.77.153.67,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 193.77.153.67
+PostgreyWhitelistEntry: 193.77.153.67
+Description: Was imported from files
+Description:  mail.likopris.si (no retry, reported by Vito Robar)
+
+dn: cn=195.235.39,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 195.235.39
+PostgreyWhitelistEntry: 195.235.39
+Description: Was imported from files
+Description:  jcsw.nato.int (several servers, no retry, reported by Vito Robar)
+
+dn: cn=tesla.vtszg.hr,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: tesla.vtszg.hr
+PostgreyWhitelistEntry: tesla.vtszg.hr
+Description: Was imported from files
+Description:  tesla.vtszg.hr (no retry, reported by Vito Robar)
+
+dn: cn=2F^mailgw.*5C.iai5C.co5C.il$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^mailgw.*5C.iai5C.co5C.il$2F
+PostgreyWhitelistEntry: /^mailgw.*\.iai\.co\.il$/
+Description: Was imported from files
+Description:  mailgw*.iai.co.il (pool of several servers, reported by Vito Robar)
+
+dn: cn=gw.stud-serv-mb.si,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: gw.stud-serv-mb.si
+PostgreyWhitelistEntry: gw.stud-serv-mb.si
+Description: Was imported from files
+Description:  gw.stud-serv-mb.si (no retry, reported by Vito Robar)
+
+dn: cn=216.238.112.99,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 216.238.112.99
+PostgreyWhitelistEntry: 216.238.112.99
+Description: Was imported from files
+Description:  mail.commandtech.com (no retry, reported by Vito Robar)
+
+dn: cn=193.81.20.195,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 193.81.20.195
+PostgreyWhitelistEntry: 193.81.20.195
+Description: Was imported from files
+Description:  duropack.co.at (no retry, reported by Vito Robar)
+
+dn: cn=193.77.126.208,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 193.77.126.208
+PostgreyWhitelistEntry: 193.77.126.208
+Description: Was imported from files
+Description:  mail.esimit-tech.si (no retry, reported by Vito Robar)
+
+dn: cn=80.200.249.216,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 80.200.249.216
+PostgreyWhitelistEntry: 80.200.249.216
+Description: Was imported from files
+Description:  mail.resotel.be (ocasionally no retry, reported by Vito Robar)
+
+dn: cn=mail2.alliancefr.be,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: mail2.alliancefr.be
+PostgreyWhitelistEntry: mail2.alliancefr.be
+Description: Was imported from files
+Description:  mail2.alliancefr.be (ocasionally no retry, reported by Vito Robar)
+
+dn: cn=webserver.turboinstitut.si,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: webserver.turboinstitut.si
+PostgreyWhitelistEntry: webserver.turboinstitut.si
+Description: Was imported from files
+Description:  webserver.turboinstitut.si (no retry, reported by Vito Robar)
+
+dn: cn=193.191.218.141,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 193.191.218.141
+PostgreyWhitelistEntry: 193.191.218.141
+Description: Was imported from files
+Description:  mil.be (pool of different servers, reported by Vito Robar)
+
+dn: cn=193.191.218.142,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 193.191.218.142
+PostgreyWhitelistEntry: 193.191.218.142
+Description: Was imported from files
+Description:  mil.be (pool of different servers, reported by Vito Robar)
+
+dn: cn=193.191.218.143,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 193.191.218.143
+PostgreyWhitelistEntry: 193.191.218.143
+Description: Was imported from files
+Description:  mil.be (pool of different servers, reported by Vito Robar)
+
+dn: cn=194.7.234.141,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 194.7.234.141
+PostgreyWhitelistEntry: 194.7.234.141
+Description: Was imported from files
+Description:  mil.be (pool of different servers, reported by Vito Robar)
+
+dn: cn=194.7.234.142,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 194.7.234.142
+PostgreyWhitelistEntry: 194.7.234.142
+Description: Was imported from files
+Description:  mil.be (pool of different servers, reported by Vito Robar)
+
+dn: cn=194.7.234.143,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 194.7.234.143
+PostgreyWhitelistEntry: 194.7.234.143
+Description: Was imported from files
+Description:  mil.be (pool of different servers, reported by Vito Robar)
+
+dn: cn=2F^mail5Cd2B5C.usafisnews5C.org$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^mail5Cd2B5C.usafisnews5C.org$2F
+PostgreyWhitelistEntry: /^mail\d+\.usafisnews\.org$/
+Description: Was imported from files
+Description:  mail*.usafisnews.org (no retry, reported by Vito Robar)
+
+dn: cn=2F^odk.fdv.uni-lj.si$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^odk.fdv.uni-lj.si$2F
+PostgreyWhitelistEntry: /^odk.fdv.uni-lj.si$/
+Description: Was imported from files
+Description:  odk.fdv.uni-lj.si (no retry, reported by Vito Robar)
+
+dn: cn=rak-gentoo-1.nameserver.de,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: rak-gentoo-1.nameserver.de
+PostgreyWhitelistEntry: rak-gentoo-1.nameserver.de
+Description: Was imported from files
+Description:  rak-gentoo-1.nameserver.de (no retry, reported by Vito Robar)
+
+dn: cn=mx.dars.si,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: mx.dars.si
+PostgreyWhitelistEntry: mx.dars.si
+Description: Was imported from files
+Description:  dars.si (ocasionally no retry, reported by Vito Robar)
+
+dn: cn=213.143.66.210,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 213.143.66.210
+PostgreyWhitelistEntry: 213.143.66.210
+Description: Was imported from files
+Description:  cosis.si (no retry, reported by Vito Robar)
+
+dn: cn=2F^mta[12].siol.net$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^mta[12].siol.net$2F
+PostgreyWhitelistEntry: /^mta[12].siol.net$/
+Description: Was imported from files
+Description:  mta?.siol.net (sometimes no or slow retry; they use intermail, reported by Vito Robar)
+
+dn: cn=2F^pim-5Cd2B-5Cd2B5C.quickinspirationsmail5C.com$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^pim-5Cd2B-5Cd2B5C.quickinspirationsmail5C.com$2F
+PostgreyWhitelistEntry: /^pim-\d+-\d+\.quickinspirationsmail\.com$/
+Description: Was imported from files
+Description:  pim-N-N.quickinspirationsmail.com (unique sender, reported by Vito Robar)
+
+dn: cn=flymonarch.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: flymonarch.com
+PostgreyWhitelistEntry: flymonarch.com
+Description: Was imported from files
+Description:  flymonarch (no retry, reported by Marko Djukic)
+
+dn: cn=2F^p?smtp.*5C.wxs5C.nl$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^p?smtp.*5C.wxs5C.nl$2F
+PostgreyWhitelistEntry: /^p?smtp.*\.wxs\.nl$/
+Description: Was imported from files
+Description:  wxs.nl (no retry, reported by Johannes Fehr)
+
+dn: cn=ibm.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: ibm.com
+PostgreyWhitelistEntry: ibm.com
+Description: Was imported from files
+Description:  ibm.com (big pool, reported by Casey Peel)
+
+dn: cn=2F^mail5Cd2B5C.messagelabs5C.com$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^mail5Cd2B5C.messagelabs5C.com$2F
+PostgreyWhitelistEntry: /^mail\d+\.messagelabs\.com$/
+Description: Was imported from files
+Description:  messagelabs.com (big pool, reported by John Tobin)
+
+dn: cn=berlin.ptb.de,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: berlin.ptb.de
+PostgreyWhitelistEntry: berlin.ptb.de
+Description: Was imported from files
+Description:  ptb.de (slow, reported by Joachim Schoenberg)
+
+dn: cn=registrarmail.net,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: registrarmail.net
+PostgreyWhitelistEntry: registrarmail.net
+Description: Was imported from files
+Description:  registrarmail.net (unique sender names, reported by Simon Waters)
+
+dn: cn=2F^.*-out-.*5C.google5C.com$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^.*-out-.*5C.google5C.com$2F
+PostgreyWhitelistEntry: /^.*-out-.*\.google\.com$/
+Description: Was imported from files
+Description:  google.com (big pool, reported by Matthias Dyer)
+
+dn: cn=2F^smtp5Cd2B5C.orange5C.fr$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^smtp5Cd2B5C.orange5C.fr$2F
+PostgreyWhitelistEntry: /^smtp\d+\.orange\.fr$/
+Description: Was imported from files
+Description:  orange.fr (big pool, reported by Loc Le Loarer)
+
+dn: cn=2F^smtp5Cd2B.citigroup.com$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^smtp5Cd2B.citigroup.com$2F
+PostgreyWhitelistEntry: /^smtp\d+.citigroup.com$/
+Description: Was imported from files
+Description:  citigroup.com (slow retry, reported by Michael Monnerie)
+
+dn: cn=mail.ccs-cruising.ch,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: mail.ccs-cruising.ch
+PostgreyWhitelistEntry: mail.ccs-cruising.ch
+Description: Was imported from files
+Description:  cruisingclub.ch (no retry)
+
+dn: cn=diggstage01.digg.com,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: diggstage01.digg.com
+PostgreyWhitelistEntry: diggstage01.digg.com
+Description: Was imported from files
+Description:  digg.com (no retry, Debian #406774)
+
+dn: cn=smtp.liberal.ca,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: smtp.liberal.ca
+PostgreyWhitelistEntry: smtp.liberal.ca
+Description: Was imported from files
+Description:  liberal.ca (retries only during 270 seconds, Debian #406774)
+
+dn: cn=2F^mail[12]5C.pi5C.ws$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^mail[12]5C.pi5C.ws$2F
+PostgreyWhitelistEntry: /^mail[12]\.pi\.ws$/
+Description: Was imported from files
+Description:  pi.ws (pool + long retry, Debian #409851)
+
+dn: cn=rambler.ru,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: rambler.ru
+PostgreyWhitelistEntry: rambler.ru
+Description: Was imported from files
+Description:  rambler.ru (big pool, reported by Michael Monnerie)
+
+dn: cn=2F^smtp[0-9]2B-g[0-9]2B5C.free5C.fr$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^smtp[0-9]2B-g[0-9]2B5C.free5C.fr$2F
+PostgreyWhitelistEntry: /^smtp[0-9]+-g[0-9]+\.free\.fr$/
+Description: Was imported from files
+Description:  free.fr (big pool, reported by Denis Sacchet)
+
+dn: cn=2F^postfix[0-9]2B-g[0-9]2B5C.free5C.fr$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^postfix[0-9]2B-g[0-9]2B5C.free5C.fr$2F
+PostgreyWhitelistEntry: /^postfix[0-9]+-g[0-9]+\.free\.fr$/
+Description: Was imported from files
+Description:  free.fr (big pool, reported by Denis Sacchet)
+
+dn: cn=2F^netmail5Cd2B5C.thehartford5C.com$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^netmail5Cd2B5C.thehartford5C.com$2F
+PostgreyWhitelistEntry: /^netmail\d+\.thehartford\.com$/
+Description: Was imported from files
+Description:  thehartford.com (pool + long retry, reported by Jacob Leifman)
+
+dn: cn=2F^nse5Cd2B5C.abb5C.com$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^nse5Cd2B5C.abb5C.com$2F
+PostgreyWhitelistEntry: /^nse\d+\.abb\.com$/
+Description: Was imported from files
+Description:  abb.com (only one retry, reported by Roman Plessl)
+
+dn: cn=lists.sourceforge.net,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: lists.sourceforge.net
+PostgreyWhitelistEntry: lists.sourceforge.net
+Description: Was imported from files
+Description:  2007-07-27: sourceforge.net (sender verification)
+
+dn: cn=polytec.de,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: polytec.de
+PostgreyWhitelistEntry: polytec.de
+Description: Was imported from files
+Description:  2007-08-06: polytec.de (no retry, reported by Patrick McLean)
+
+dn: cn=2F^mail5Cd2B5C.msg5C.oleane5C.net$2F,ou=postgreyldap,dc=jwtest,dc=com
+objectClass: GreyListClientWhitelist
+cn: 2F^mail5Cd2B5C.msg5C.oleane5C.net$2F
+PostgreyWhitelistEntry: /^mail\d+\.msg\.oleane\.net$/
+Description: Was imported from files
+Description:  2007-09-06: qualiflow.com (no retry, reported by Alex Beckert)
+

@@ -1,0 +1,46 @@
+dn: cn=postgreyldap,cn=schema,cn=config
+objectClass: olcSchemaConfig
+cn: schema
+olcAttributeTypes: ( 1.3.6.1.4.1.39637.2.1 NAME 'PostgreyLdapClientAddress'
+  DESC 'Client Address to Match for Greylisting (likely with last octet set to
+  0)' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+olcAttributeTypes: ( 1.3.6.1.4.1.39637.2.2 NAME 'PostgreyLdapSenderAddress'
+  DESC 'Sender email address' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1
+ 466.115.121.1.26 )
+olcAttributeTypes: ( 1.3.6.1.4.1.39637.2.3 NAME 'PostgreyLdapRecipientAddre
+ ss' DESC 'Recipient email address' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1
+ .4.1.1466.115.121.1.26 )
+olcAttributeTypes: ( 1.3.6.1.4.1.39637.2.4 NAME 'PostgreyLdapClientHost' DE
+ SC 'Host IP address of SMTP client' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.
+ 1.4.1.1466.115.121.1.26 )
+olcAttributeTypes: ( 1.3.6.1.4.1.39637.2.5 NAME 'PostgreyLdapTimestampFirst
+ ' DESC 'Timestamp of first seen' EQUALITY generalizedTimeMatch ORDERING gener
+ alizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 )
+olcAttributeTypes: ( 1.3.6.1.4.1.39637.2.6 NAME 'PostgreyLdapTimestampLast'
+  DESC 'Timestamp of most recent seen' EQUALITY generalizedTimeMatch ORDERING 
+ generalizedTimeOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 )
+olcAttributeTypes: ( 1.3.6.1.4.1.39637.2.7 NAME 'PostGreyLdapPassCount' DES
+ C 'Greylist pass count' EQUALITY integerMatch ORDERING integerOrderingMatch S
+ YNTAX 1.3.6.1.4.1.1466.115.121.1.27 )
+olcAttributeTypes: ( 1.3.6.1.4.1.39637.2.8 NAME 'PostgreyWhitelistEntry' DE
+ SC 'Whitelist entry' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.
+ 121.1.26 )
+olcAttributeTypes: ( 1.3.6.1.4.1.39637.2.9 NAME 'PostgreyTimestampDelta' DE
+ SC 'Timestamp Delta' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.
+ 27 )
+olcObjectClasses: ( 1.3.6.1.4.1.39637.1.1 NAME 'GreyListTriplet' DESC 'MX G
+ reylist Tripplet' SUP top STRUCTURAL MUST ( cn $ PostgreyLdapClientAddress $ 
+ PostgreyLdapSenderAddress $ PostgreyLdapRecipientAddress $ PostgreyLdapClient
+ Host $ PostgreyLdapTimestampFirst $ PostgreyLdapTimestampLast $ PostgreyTimes
+ tampDelta ) MAY description )
+olcObjectClasses: ( 1.3.6.1.4.1.39637.1.2 NAME 'GreyListClientAutoWhitelist
+ ' DESC 'MX Greylist Client Auto Whitelist' SUP top STRUCTURAL MUST ( cn $ Pos
+ tgreyLdapClientHost $ PostGreyLdapPassCount $ PostgreyLdapTimestampFirst $ Po
+ stgreyLdapTimestampLast ) MAY description )
+olcObjectClasses: ( 1.3.6.1.4.1.39637.1.3 NAME 'GreyListClientWhitelist' DE
+ SC 'MX Greylist Client Whitelist' SUP top STRUCTURAL MUST ( cn $ PostgreyWhit
+ elistEntry ) MAY description )
+olcObjectClasses: ( 1.3.6.1.4.1.39637.1.4 NAME 'GreyListRecipientWhitelist'
+  DESC 'MX Greylist Recipient Whitelist' SUP top STRUCTURAL MUST ( cn $ Postgr
+ eyWhitelistEntry ) MAY description )
+cn: postgreyldap

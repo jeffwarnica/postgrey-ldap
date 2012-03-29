@@ -1,0 +1,97 @@
+#This document describes the required LDAP schema for postgreyldap to function.
+#
+#
+# Hopefully it is in a .ldif format you can easily import into your OpenLDAP system
+#
+#
+#Root OID:
+
+#1.3.6.1.4.1.39637.1 - Object Classes
+#1.3.6.1.4.1.39637.2 - Attributes
+
+#dn: cn=postgreyladp,cn=schema,cn=config
+#objectClass: olcSchemaConfig
+#cn: postgreyladp
+
+attributetype ( 1.3.6.1.4.1.39637.2.1 NAME 'PostgreyLdapClientAddress'
+	DESC 'Client Address to Match for Greylisting (likely with last octet set to 0)'
+	EQUALITY caseIgnoreIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{15})
+	
+attributetype ( 1.3.6.1.4.1.39637.2.2 NAME 'PostgreyLdapSenderAddress'
+	DESC 'Sender email address'
+	EQUALITY caseIgnoreIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{128})
+	
+attributetype ( 1.3.6.1.4.1.39637.2.3 NAME 'PostgreyLdapRecipientAddress'
+	DESC 'Recipient email address'
+	EQUALITY caseIgnoreIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26)
+	
+attributetype ( 1.3.6.1.4.1.39637.2.4 NAME 'PostgreyLdapClientHost'
+	DESC 'Host IP address of SMTP client'
+	EQUALITY caseIgnoreIA5Match
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{15})
+	
+attributetype ( 1.3.6.1.4.1.39637.2.5 NAME 'PostgreyLdapTimestampFirst'
+	DESC 'Timestamp of first seen'
+	EQUALITY generalizedTimeMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.24
+	ORDERING generalizedTimeOrderingMatch)
+	
+attributetype ( 1.3.6.1.4.1.39637.2.6 NAME 'PostgreyLdapTimestampLast'
+	DESC 'Timestamp of most recent seen'
+	EQUALITY generalizedTimeMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.24
+	ORDERING generalizedTimeOrderingMatch)
+	
+attributetype ( 1.3.6.1.4.1.39637.2.7 NAME 'PostGreyLdapPassCount'
+	DESC 'Greylist pass count'
+        EQUALITY integerMatch
+        ORDERING integerOrderingMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.27)
+	
+attributetype ( 1.3.6.1.4.1.39637.2.8 NAME 'PostgreyWhitelistEntry'
+	DESC 'Whitelist entry'
+	EQUALITY caseIgnoreIA5Match
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.26)
+
+attributetype ( 1.3.6.1.4.1.39637.2.9 NAME 'PostgreyTimestampDelta'
+	DESC 'Timestamp Delta'
+	EQUALITY integerMatch
+        SYNTAX 1.3.6.1.4.1.1466.115.121.1.27)
+	
+	
+objectClass ( 1.3.6.1.4.1.39637.1.1 
+	NAME 'GreyListTriplet' 
+	DESC 'MX Greylist Tripplet' 
+	SUP top STRUCTURAL
+	MUST ( cn $ PostgreyLdapClientAddress $ PostgreyLdapSenderAddress $ PostgreyLdapRecipientAddress $ PostgreyLdapClientHost $ PostgreyLdapTimestampFirst $ PostgreyLdapTimestampLast $ PostgreyTimestampDelta )
+	MAY description
+	)
+	
+objectClass ( 1.3.6.1.4.1.39637.1.2
+	NAME 'GreyListClientAutoWhitelist' 
+	DESC 'MX Greylist Client Auto Whitelist' 
+	SUP top STRUCTURAL
+	MUST ( cn $ PostgreyLdapClientHost $ PostGreyLdapPassCount $ PostgreyLdapTimestampFirst $ PostgreyLdapTimestampLast )
+	MAY description
+	)
+
+objectClass ( 1.3.6.1.4.1.39637.1.3 
+	NAME 'GreyListClientWhitelist' 
+	DESC 'MX Greylist Client Whitelist' 
+	SUP top STRUCTURAL
+	MUST ( cn $ PostgreyWhitelistEntry )
+	MAY description
+	)
+	
+objectClass ( 1.3.6.1.4.1.39637.1.4 
+	NAME 'GreyListRecipientWhitelist' 
+	DESC 'MX Greylist Recipient Whitelist' 
+	SUP top STRUCTURAL
+	MUST ( cn $ PostgreyWhitelistEntry )
+	MAY description
+	)
+	
+
