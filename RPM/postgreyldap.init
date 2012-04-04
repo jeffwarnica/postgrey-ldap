@@ -1,0 +1,120 @@
+#!/bin/sh
+
+# Copyright (c) 2012 Jeff Warnica, NS, Canada
+#
+# Based on postgrey.init by SUSE
+#
+# Copyright (c) 2008 SUSE LINUX Products GmbH, Nuernberg, Germany.
+# This file and all modifications and additions to the pristine
+# package are under the same license as the package itself.
+
+# Copyright (c) 2008 SUSE LINUX Products AG, Nuernberg, Germany.
+# All rights reserved.
+#
+# Author: Jeff Warnica
+#
+# /etc/init.d/postgreyldap
+#   and its symbolic link
+# /(usr/)sbin/rcpostgreyldap
+#
+# postgreyldap      This shell script takes care of starting and stopping
+#                   postgreyldap.
+#
+#
+### BEGIN INIT INFO
+# Provides:          postgreyldap
+# Required-Start:    $syslog $local_fs $network $named $time
+# Should-Start:      cyrus ldap ypbind sendmail $remote_fs
+# Required-Stop:     $syslog $local_fs
+# Should-Stop:       $time ypbind sendmail $remote_fs
+# Default-Start:     3 5
+# Default-Stop:      0 1 2 6
+# Short-Description: PostgreyLDAP a greylisting server for postfix
+# Description:       PostgreyLDAP is a Postfix policy server implementing greylisting
+### END INIT INFO
+# 
+
+# Check for missing binaries (stale symlinks should not happen)
+# Note: Special treatment of stop for LSB conformance
+POSTGREYLDAP_BIN=/usr/sbin/postgreyldap
+test -x $POSTGREYLDAP_BIN || { echo "$POSTGREYLDAP_BIN not installed";
+	if [ "$1" = "stop" ]; then exit 0;
+	else exit 5; fi; }
+
+# Check for existence of needed config file and read it
+POSTGREYLDAP_SYSCONFIG=/etc/sysconfig/postgreyldap
+test -r $POSTGREYLDAP_SYSCONFIG || { echo "$POSTGREYLDAP_SYSCONFIG not existing";
+	if [ "$1" = "stop" ]; then exit 0;
+	else exit 6; fi; }
+
+# Read sysconfig
+. $POSTGREYLDAP_SYSCONFIG
+
+
+# Source SuSE config, only if exists with size greater zero
+test -s /etc/rc.status && . /etc/rc.status
+
+# Reset status of this service
+rc_reset
+
+case "$1" in
+  start)
+	echo -n "Starting postgrey daemon"
+	## Start daemon with startproc(8). If this fails
+	## the echo return value is set appropriate.
+	/sbin/startproc "$POSTGREYLDAP_BIN" --config $POSTGREYLDAP_CONFIG
+
+	# Remember status and be verbose 
+	rc_status -v
+	;;
+  stop)
+	echo -n "Shutting down postgreyldap daemon"
+	## Stop daemon with killproc(8) and if this fails
+	## set echo the return value.
+	/sbin/killproc -TERM "$POSTGREYLDAP_BIN"
+
+	# Remember status and be verbose 
+	rc_status -v
+	;;
+  try-restart)
+	$0 status >/dev/null &&  $0 restart
+	# Remember status and be quiet
+	rc_status
+	;;
+  restart)
+	## Stop the service and regardless of whether it was
+	## running or not, start it again.
+	$0 stop
+	sleep 3s
+	$0 start
+	
+	# Remember status and be quiet
+	rc_status
+	;;
+  force-reload)
+	echo -n "Reload service postgreyldap not possible"
+	rc_failed 3
+
+	# Remember status and be verbose 
+	rc_status -v
+	;;
+  reload)
+	## Send daemon HUP signal with killproc(8) and if this
+	## fails set echo the return value.
+	/sbin/killproc -HUP "$POSTGREYLDAP_BIN"
+
+	# Remember status and be verbose 
+	rc_status -v
+	;;
+  status)
+	echo -n "Checking for service postgreyldap: "
+	/sbin/checkproc "$POSTGREYLDAP_BIN"
+
+	# Remember status and be verbose 
+	rc_status -v
+	;;
+  *)
+	echo "Usage: postgreyldap {start|stop|try-restart|restart|reload|status}"
+	exit 1
+esac
+rc_exit

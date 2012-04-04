@@ -1,0 +1,9 @@
+## Path:          Network/Mail/PostgreyLDAP
+## Description:   Basic configuration of the postgreyldap greylisting daemon
+
+## Type:          string
+## Default:       "/etc/postfix/postgreyldap.conf"
+## ServiceReload: postgreyldap
+#
+# 
+POSTGREYLDAP_CONFIG="/etc/postfix/postgreyldap.conf"

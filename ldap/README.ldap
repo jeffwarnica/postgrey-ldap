@@ -1,0 +1,40 @@
+LDAP Schema Instructions
+
+PostgreyLDAP requires custom schema extensions to your LDAP directory to 
+function.
+
+Schema files are provided as standard LDIF, and as LDIF formated for the 
+OpenLDAP in-directory configuration.
+
+We provide three .ldif files to extend the schema, add indexes, create a user, an OU, and grant 
+permissions. THESE ARE EXAMPLES ONLY. They were created based on a basically brand new OpenLDAP
+server as installed by OpenSUSE/YaST. The structure may not be what you want. The access rules
+are almost definitely not what you want.
+
+To extend the schema of an OpenLDAP system which uses the in-directory
+configuration:
+
+ $ ldapadd -x -D cn=Administrator,dc=example,dc=com -H ldapi//ldap.example.com/ -W -f schema4ldapadd.ldif 
+
+Also a good idea to add indexes to LDAP to speed up lookups. A sample is provided, but you will 
+need to modify this, based on your LDAP database configuration.
+
+ $ ldapmodify -x -D cn=Administrator,dc=example,dc=com -H ldapi//ldap.example.com/ -W -f indexes.ldif 
+
+And also create an ldap user, and a new OU for our objects, and grant permissions to the later from the former:
+
+ $ ldapmodify -x -D cn=Administrator,dc=example,dc=com -H ldapi//ldap.example.com/ -W -f access.ldif
+
+DO NOT RUN THESE BLINDLY. UNDERSTAND WHAT THEY DO.
+
+
+mkschema.pl README
+
+mkschema.pl will attempt to convert a standard LDIF schema description file, 
+describing the requited LDAP schema for PostgreyLDAP, into the OpenLDAP 
+"in directory" schema configuration.
+
+It relies on slaptest being installed on the local system.
+
+Running this should only be necessary by developers, if and when the source
+schema changes.
