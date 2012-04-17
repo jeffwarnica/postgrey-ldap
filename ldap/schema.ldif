@@ -59,6 +59,7 @@ attributetype ( 1.3.6.1.4.1.39637.2.8 NAME 'PostgreyWhitelistEntry'
 attributetype ( 1.3.6.1.4.1.39637.2.9 NAME 'PostgreyTimestampDelta'
 	DESC 'Timestamp Delta'
 	EQUALITY integerMatch
+	ORDERING integerOrderingMatch
         SYNTAX 1.3.6.1.4.1.1466.115.121.1.27)
 	
 	

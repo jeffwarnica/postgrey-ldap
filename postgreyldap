@@ -21,6 +21,8 @@ use Sys::Hostname;
 use Sys::Syslog; # used only to find out which version we use
 use POSIX qw(strftime setlocale LC_ALL);
 
+use Time::HiRes qw ( setitimer ITIMER_VIRTUAL ITIMER_REAL time );
+
 use Config::Simple;
 
 use Data::Dumper;
@@ -528,6 +530,54 @@ sub do_client_substitutions($$$)
     return (join('.', @ip[0..2], '0'), $ip[3]);
 }
 
+sub ldap_check_and_reconnect($){
+	my $self = shift;
+	
+	$self->log(3, "> ldap_check_and_reconnect()");
+	
+	my $base = $self->{pgl}{ldap_base};
+	
+	$self->log(3, "self->{ldap_retryCount} = " . $self->{pgl}{ldap_retryCount});
+	
+	#first time, just test
+	if ($self->{pgl}{ldap_retryCount} == 0) {
+		my $result = $self->{pgl}{ldap}->search ( 
+									base    => $base,
+	                                scope   => "one",
+	                                filter  => "(objectClass=*)",
+	                                attrs   =>  ['dn']
+	    ) ;
+	    
+	    #and return if all is OK.
+	    if (!$result->code()) {
+	    	return;
+	    }		
+	}
+	
+    #if we are busted, or retrying... retry
+    my $Config = $self->{pgl}{config};
+   	my $mesg;
+ 	
+    for (my $i=0; $i<=5; $i++){
+  		$self->log(3, "Retry LDAP connection # $i / " . $self->{pgl}{ldap_retryCount});
+			
+		$self->{pgl}{ldap} = Net::LDAP->new($Config->param('server')) or next;
+		$mesg = $self->{pgl}{ldap}->bind($Config->param('dn'), password => $Config->param('password'));
+		
+		if (!$mesg->code) {
+			$self->{pgl}{ldap_retryCount} = 0;
+			$self->log(3, "Retry LDAP connection... Success! Yay. Back in business");
+			return;
+		}
+    }
+    	
+   	if (++$self->{pgl}{ldap_retryCount} > 5) {
+		$self->log(1, "LDAP Server went away? Was unable to reconnect after 5 tries");
+		die("LDAP Server went away? Was unable to reconnect after 5 tries");
+   	}
+    	
+}
+
 sub do_maintenance($$)
 {
     my ($self, $now) = @_;
@@ -999,6 +1049,7 @@ sub main()
             hostname         => $Config->param("hostname"),
             exim 			 => defined $Config->param("exim"),
             ldap_base		 => $Config->param('base'), #we need this enough that quick access is nice.
+            ldap_retryCount  => 0
         },
     }, 'postgreyldap';
 
@@ -1012,7 +1063,7 @@ sub main()
 		$server->dump_whitelists();
 		exit;
 	}
-
+	
     $0 = join(' ', @{$server->{server}{commandline}});
     $server->run;
 
@@ -1061,8 +1112,20 @@ $self->mylog(1, ">> pre_loop_hook()");
     open(LOCK, ">>$lock") or die "ERROR: can't open lock file: $lock : " . $_ . "\n";
     flock(LOCK, LOCK_EX|LOCK_NB) or die "ERROR: locked: $lock\n";
 
+	#lets do something every 60 seconds.
+	$SIG{ALRM} = sub { $self->sig_alarm(); };
+	setitimer(ITIMER_REAL, 60, 60);
+	
     $self->do_maintenance(time);
     
+}
+
+sub sig_alarm($) {
+	my $self = shift;
+	$self->log(3, "sig_alarm()");
+	$self->do_maintenance();
+	$self->ldap_check_and_reconnect();
+	print time, "\n"
 }
 
 sub mux_input()
@@ -1094,11 +1157,11 @@ sub mux_input()
                 # give answer
                 print $fh "action=$action\n\n";
 
-                # cleanup and commit if enough time has passed
-                if($now-$self->{net_server}{pgl}{last_maintenance} >= 60) {
-                    $self->{net_server}->do_maintenance($now);
-                    $self->{net_server}{pgl}{last_maintenance} = $now;
-                }
+#                # cleanup and commit if enough time has passed
+#                if($now-$self->{net_server}{pgl}{last_maintenance} >= 60) {
+#                    $self->{net_server}->do_maintenance($now);
+#                    $self->{net_server}{pgl}{last_maintenance} = $now;
+#                }
 
                 # close the filehandle if --exim is set
                 if ($self->{net_server}{pgl}{exim}) {

@@ -26,8 +26,8 @@ olcAttributeTypes: ( 1.3.6.1.4.1.39637.2.8 NAME 'PostgreyWhitelistEntry' DE
  SC 'Whitelist entry' EQUALITY caseIgnoreIA5Match SYNTAX 1.3.6.1.4.1.1466.115.
  121.1.26 )
 olcAttributeTypes: ( 1.3.6.1.4.1.39637.2.9 NAME 'PostgreyTimestampDelta' DE
- SC 'Timestamp Delta' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.
- 27 )
+ SC 'Timestamp Delta' EQUALITY integerMatch ORDERING integerOrderingMatch SYNT
+ AX 1.3.6.1.4.1.1466.115.121.1.27 )
 olcObjectClasses: ( 1.3.6.1.4.1.39637.1.1 NAME 'GreyListTriplet' DESC 'MX G
  reylist Tripplet' SUP top STRUCTURAL MUST ( cn $ PostgreyLdapClientAddress $ 
  PostgreyLdapSenderAddress $ PostgreyLdapRecipientAddress $ PostgreyLdapClient
