@@ -1,1 +1,3 @@
 config
+ldap/import-client.ldif
+ldap/import-recipient.ldif
