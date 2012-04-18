@@ -31,8 +31,8 @@ PreReq:         %insserv_prereq, %fillup_prereq /usr/sbin/useradd
 License:        GPL-2.0+
 Group:          Productivity/Networking/Email/Utilities
 Summary:        PostfixLDAP LDAP Backed greylisting policy server
-Version:        0.0.1
-Release:        2
+Version:        0.0.3
+Release:        1
 Url:            https://github.com/jeffwarnica/postgrey-ldap
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Source0:        http://postgrey.schweikert.ch/pub/%name-%{version}.tar.bz2
@@ -122,9 +122,12 @@ install -d -m 0775 %{buildroot}/%{_var}/spool/postfix/%{name}
 %dir %attr(0770,postgrey,postfix) %{_var}/spool/postfix/%{name}
 %doc %{_mandir}/man?/*
 #%doc Changes COPYING README README.SUSE examples %{name}_daily_greylist.crontab
-%doc COPYING README ldap/schema4ldapadd.ldif ldap/import-client.ldif ldap/indexes.ldif ldap/schema.ldif ldap/README.ldap ldap/postgrey_whitelist_recipients ldap/access.ldif ldap/import-recipient.ldif ldap/postgrey_whitelist_clients ldap/whitelist2ldap.pl
+%doc COPYING README ldap/schema4ldapadd.ldif ldap/indexes.ldif ldap/schema.ldif ldap/README.ldap ldap/postgrey_whitelist_recipients ldap/access.ldif ldap/postgrey_whitelist_clients ldap/whitelist2ldap.pl
 
 
 %changelog
+* Tue May 17 2012 jeff@coherentnetworksolutions.com
+- Update to package, including reconnect to dead LDAP servers
+
 * Tue Apr 3 2012 jeff@coherentnetworksolutions.com
 - Initial creation of RPM (fork of postgreyldap)
