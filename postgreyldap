@@ -19,9 +19,9 @@ use DBI;
 use Fcntl ':flock'; # import LOCK_* constants
 use Sys::Hostname;
 use Sys::Syslog; # used only to find out which version we use
-use POSIX qw(strftime setlocale LC_ALL);
+use POSIX qw(strftime setlocale LC_ALL floor);
 
-use Time::HiRes qw ( setitimer ITIMER_VIRTUAL ITIMER_REAL time );
+use Time::HiRes qw ( setitimer ITIMER_VIRTUAL ITIMER_REAL );
 
 use Config::Simple;
 
@@ -51,15 +51,15 @@ sub generalizedTime2UnixTime($$) {
 	if ($in =~ /^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)\.?(\d\d\d)?$/) {
 		($year, $month, $day, $hour, $min, $sec) = ($1, $2, $3, $4, $5, $6);
 		if (defined $7) { $frac = $7;}
-		$self->mylog(1, " local: ($year, $month, $hour, $min, $sec, $frac)  ");
+		$self->mylog(5, " local: ($year, $month, $hour, $min, $sec, $frac)  ");
 		$local = 1;
 	} elsif ($in =~ /^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)\.?(\d\d\d)?Z$/) {
 		($year, $month, $day, $hour, $min, $sec) = ($1, $2, $3, $4, $5, $6);
 		if (defined $7) { $frac = $7;}
-		$self->mylog(1, " UTC: ($year, $month, $hour, $min, $sec, $frac)  ");
+		$self->mylog(5, " UTC: ($year, $month, $hour, $min, $sec, $frac)  ");
 	} elsif ($in =~ /^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)\.?(\d\d\d)?([+-])(\d\d)(\d\d)$/) {
 		($year, $month, $day, $hour, $min, $sec, $frac, $offdir, $offhr, $offmin) = ($1, $2, $3, $4, $5, $6, $7, $8, $9);
-		$self->mylog(1, " With offset: ($year, $month, $hour, $min, $sec, $frac, $offdir, $offhr, $offmin)  ");
+		$self->mylog(5, " With offset: ($year, $month, $hour, $min, $sec, $frac, $offdir, $offhr, $offmin)  ");
 	}
 				        #(sec, min, hour, mday, mon, year, wday = 0, yday = 0, isdst = -1)
 	$time = POSIX::mktime($sec, $min, $hour, $day, $month-1, $year-1900);
@@ -67,11 +67,11 @@ sub generalizedTime2UnixTime($$) {
 	return $time;
 }
 
-sub ldap_init($$) 
+sub ldap_init($) 
 {
-	my ($self, $file) = @_;
+	my ($self) = @_;
 	
-	$self->mylog(3, ">> ldap_init($file)");
+	$self->mylog(3, ">> ldap_init( )");
 	
 	my $Config = $self->{pgl}{config};
 	
@@ -109,6 +109,9 @@ sub ldap_cawl_cleanup($$) {
 
 sub ldap_cawl_create($$) {
 	my ($self, $cawl_key, $cawl_count, $cawl_first_t, $now) = @_;
+	
+	$cawl_first_t = defined($cawl_first_t ? $cawl_first_t : $now);
+	
 	$self->mylog(3, ">> ldap_cawl_create( $cawl_key, $cawl_count, $cawl_first_t, $now )");
 	
 	my $base = $self->{pgl}{ldap_base};
@@ -117,7 +120,7 @@ sub ldap_cawl_create($$) {
 	$cawl_first_t = $self->unix2generalizedTime($cawl_first_t);
 	my $dn = "cn=" . $cawl_key . "," . $base;
 	
-	$self->mylog(1, "       Attempting to add dn: $dn");
+	$self->mylog(1, "       Attempting to add cawl dn: $dn");
 	
 	my $result = $self->{pgl}{ldap}->add(
 		$dn, 
@@ -172,6 +175,8 @@ sub ldap_cawl_update($$) {
 	#UPDATE cawl SET count=?, first_t=?, last_t=? WHERE ip=?
 	
 	my ($self, $cawl_count, $now, $cawl_key, $cawl_first_t, $cawl_entry) = @_;
+	$cawl_first_t = defined($cawl_first_t ? $cawl_first_t : $now);
+	
 	$self->mylog(3, ">> ldap_cawl_update( $cawl_count, $now, $cawl_key, $cawl_first_t, " . $cawl_entry->dn() . " )");
 	
 	$now = $self->unix2generalizedTime($now);
@@ -228,6 +233,8 @@ sub ldap_triplet_lookup($$) {
     
     $self->mylog(4, "Count: " . $result->count);
     
+    $self->mylog(2, "Searched for ( $client_net, $sender, $recip ). Result count: " . $result->count);
+    
     if ( $result->count > 1 ) {
     	die "Serious problems with LDAP: returning multiple results for $filter at $base. Should not be possible";
     } elsif ( $result->count == 1 ) {
@@ -254,7 +261,7 @@ sub ldap_triplet_create($$) {
 	my $cn = "$client_net/$sender/$recip";
 	my $dn = "cn=" . $cn . "," . $base;
 	
-	$self->mylog(4, "       Attempting to add dn: $dn");
+	$self->mylog(4, "       Attempting to add triplet dn: $dn");
 	
 	my $result = $self->{pgl}{ldap}->add(
 		$dn, 
@@ -282,21 +289,23 @@ sub ldap_triplet_update($$) {
 	$self->mylog(3, ">> ldap_triplet_update( $client_host, $first, $now, $delta_t, $client_net, $sender, $recip, " . $trip_entry->dn() . " )");
 
 	my $base = $self->{pgl}{ldap_base};
-	
+	my $dn = $trip_entry->dn();
 	$first = $self->unix2generalizedTime($first);
 	$now = $self->unix2generalizedTime($now);
 	
-	$self->mylog(1,                     "First: $first Now: $now");
+	$self->mylog(4, "       Attempting to update triplet dn: $dn. PostgreyLdapClientHost: $client_host; PostgreyLdapTimestampFirst: $first; PostgreyLdapTimestampLast: $now; PostgreyTimestampDelta: $delta_t");
 	
 	my $result = $self->{pgl}{ldap}->modify(
-						$trip_entry->dn(), 
+						$dn, 
 						changes => [ 
 							replace => [  'PostgreyLdapClientHost', $client_host,
 										  'PostgreyLdapTimestampFirst', $first,
 										  'PostgreyLdapTimestampLast', $now,
-										  'PostgreyTimestampDelta'	=> $delta_t,
+										  'PostgreyTimestampDelta'	=> floor($delta_t),
 									   ]
-						]);
+						]
+	);
+	$result->code && warn "failed to update entry: ", $result->error ;
 	
 }
 
@@ -529,7 +538,7 @@ sub ldap_check_and_reconnect($){
 	
 	my $base = $self->{pgl}{ldap_base};
 	
-	$self->log(3, "self->{ldap_retryCount} = " . $self->{pgl}{ldap_retryCount});
+	$self->log(4, "self->{ldap_retryCount} = " . $self->{pgl}{ldap_retryCount});
 	
 	#first time, just test
 	if ($self->{pgl}{ldap_retryCount} == 0) {
@@ -714,7 +723,8 @@ sub smtpd_access_policy($$)
     
     my $last_was_successful=0;
     if(defined $first) {
-    	$self->mylog(1, " Back from ldap_triplet_lookup. I actually got back: $first, $last");
+    	my $Xdiff = $last-$first;
+    	$self->mylog(2, "Back from ldap_triplet_lookup. I actually got back: $first, $last, which is: $Xdiff" );
         # find out if the last time was unsuccessful, so that we can add a header
         # to say how much had to be waited
         if($last - $first >= $self->{pgl}{delay}) {
@@ -727,7 +737,7 @@ sub smtpd_access_policy($$)
         }
     }
     else {
-    	$self->mylog(1, " Back from ldap_triplet_lookup. Was empty. Greylisting.");
+    	$self->mylog(2, " Back from ldap_triplet_lookup. Was empty. Greylisting.");
         $first = $now;
     }
 
@@ -805,6 +815,8 @@ sub smtpd_access_policy($$)
 
     # X-Greylist header:
     if(!$last_was_successful and $self->is_new_instance($attr->{instance})) {
+    	my $Xdelay = $now - $first;
+    	$self->log(1, "Passing; triplet found. Delay: $Xdelay");
         # syslog
         my $client = ($attr->{client_name} and $attr->{client_name} ne 'unknown') ?
                      $attr->{client_name} : $attr->{client_address};
@@ -948,7 +960,7 @@ sub main()
     	$Config->param("privacy", 0);
     }
     
-    unless ($Config->param("log-level") =~ /^(1|2|3)$/) {
+    unless ($Config->param("log-level") =~ /^(\d)$/) {
     	$Config->param("log-level", 1);
     }
     
@@ -1070,7 +1082,7 @@ sub sig_hup {
     $self->mylog(1, "HUP received: reloading whitelists...");
     
     #why not, lets do everything:
-    $self->do_maintenance();
+    $self->do_maintenance(time);
 	$self->ldap_check_and_reconnect();
 	
     $self->read_clients_whitelists();
@@ -1081,7 +1093,7 @@ sub sig_hup {
 sub sig_alarm($) {
 	my $self = shift;
 	$self->log(3, "sig_alarm()");
-	$self->do_maintenance();
+	$self->do_maintenance(time);
 	$self->ldap_check_and_reconnect();
 	
 	if (++$self->{pgl}{alarm_count} > 5) {

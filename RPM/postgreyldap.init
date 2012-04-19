@@ -59,7 +59,7 @@ rc_reset
 
 case "$1" in
   start)
-	echo -n "Starting postgrey daemon"
+	echo -n "Starting postgreyldap daemon"
 	## Start daemon with startproc(8). If this fails
 	## the echo return value is set appropriate.
 	/sbin/startproc "$POSTGREYLDAP_BIN" --config $POSTGREYLDAP_CONFIG

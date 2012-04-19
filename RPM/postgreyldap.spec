@@ -31,7 +31,7 @@ PreReq:         %insserv_prereq, %fillup_prereq /usr/sbin/useradd
 License:        GPL-2.0+
 Group:          Productivity/Networking/Email/Utilities
 Summary:        PostfixLDAP LDAP Backed greylisting policy server
-Version:        0.0.4
+Version:        0.0.6
 Release:        1
 Url:            https://github.com/jeffwarnica/postgrey-ldap
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
@@ -117,9 +117,9 @@ install -d -m 0775 %{buildroot}/%{_var}/spool/postfix/%{name}
 %config %attr(0755,root,root) /etc/init.d/%{name}
 %{_sbindir}/%{name}
 %{_sbindir}/rc%{name}
-%dir %attr(0755,postgrey,postfix) %{_var}/lib/%{name}
+%dir %attr(0755,postgreyldap,postfix) %{_var}/lib/%{name}
 /var/adm/fillup-templates/sysconfig.%{name}
-%dir %attr(0770,postgrey,postfix) %{_var}/spool/postfix/%{name}
+%dir %attr(0770,postgreyldap,postfix) %{_var}/spool/postfix/%{name}
 %doc %{_mandir}/man?/*
 #%doc Changes COPYING README README.SUSE examples %{name}_daily_greylist.crontab
 %doc COPYING README ldap/schema4ldapadd.ldif ldap/indexes.ldif ldap/schema.ldif ldap/README.ldap ldap/postgrey_whitelist_recipients ldap/access.ldif ldap/postgrey_whitelist_clients ldap/whitelist2ldap.pl
