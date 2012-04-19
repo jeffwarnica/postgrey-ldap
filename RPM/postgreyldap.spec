@@ -31,7 +31,7 @@ PreReq:         %insserv_prereq, %fillup_prereq /usr/sbin/useradd
 License:        GPL-2.0+
 Group:          Productivity/Networking/Email/Utilities
 Summary:        PostfixLDAP LDAP Backed greylisting policy server
-Version:        0.0.3
+Version:        0.0.4
 Release:        1
 Url:            https://github.com/jeffwarnica/postgrey-ldap
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build

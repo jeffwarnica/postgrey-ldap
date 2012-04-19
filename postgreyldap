@@ -42,12 +42,8 @@ sub unix2generalizedTime($$) {
 
 sub generalizedTime2UnixTime($$) {
 	my ($self, $in) = @_;
+	$self->mylog(3, ">> generalizedTime2UnixTime( $in)");
 
-	#$self->mylog(1, ">> generalizedTime2UnixTime( $in )");
-	
-	#YYYYMMDDHHMMSS.fff (local)
-	#YYYYMMDDHHMMSS.fffZ (UTC)
-	#YYYYMMDDHHMMSS.fff+-HHMM (with offset)
 	my ($year, $month, $day, $hour, $min, $sec, $frac, $local, $offdir, $offhr, $offmin, $time);
 	$frac = 0;
 	$local = 0;
@@ -68,8 +64,6 @@ sub generalizedTime2UnixTime($$) {
 				        #(sec, min, hour, mday, mon, year, wday = 0, yday = 0, isdst = -1)
 	$time = POSIX::mktime($sec, $min, $hour, $day, $month-1, $year-1900);
 	
-	#$self->mylog(1, "Time $in = $time = " . $self->unix2generalizedTime($time));
-	
 	return $time;
 }
 
@@ -77,7 +71,7 @@ sub ldap_init($$)
 {
 	my ($self, $file) = @_;
 	
-	$self->mylog(1, ">> ldap_init()");
+	$self->mylog(3, ">> ldap_init($file)");
 	
 	my $Config = $self->{pgl}{config};
 	
@@ -90,7 +84,7 @@ sub ldap_init($$)
 
 sub ldap_cawl_cleanup($$) {
 	my ($self, $max_age_t) = @_;
-	$self->mylog(1, ">> ldap_cawl_cleanup( $max_age_t )");
+	$self->mylog(3, ">> ldap_cawl_cleanup( $max_age_t )");
 	
 	my $base = $self->{pgl}{ldap_base};
 	
@@ -115,7 +109,7 @@ sub ldap_cawl_cleanup($$) {
 
 sub ldap_cawl_create($$) {
 	my ($self, $cawl_key, $cawl_count, $cawl_first_t, $now) = @_;
-	$self->mylog(1, ">> ldap_cawl_create( $cawl_key, $cawl_count, $cawl_first_t, $now )");
+	$self->mylog(3, ">> ldap_cawl_create( $cawl_key, $cawl_count, $cawl_first_t, $now )");
 	
 	my $base = $self->{pgl}{ldap_base};
 	
@@ -143,13 +137,13 @@ sub ldap_cawl_create($$) {
 
 sub ldap_cawl_lookup($$) {
 	my ($self, $cawl_key) = @_;
-	$self->mylog(1, ">> ldap_cawl_lookup( $cawl_key )");
+	$self->mylog(3, ">> ldap_cawl_lookup( $cawl_key )");
 
 	my $base = $self->{pgl}{ldap_base};
 	
 	my $filter =  "(&(objectClass=GreyListClientAutoWhitelist)(PostgreyLdapClientHost=$cawl_key))";
-	$self->mylog(1, "          $base");
-	$self->mylog(1, "          $filter");
+	$self->mylog(4, "          $base");
+	$self->mylog(4, "          $filter");
 	my $result = $self->{pgl}{ldap}->search ( 
 								base    => $base,
                                 scope   => "sub",
@@ -166,7 +160,7 @@ sub ldap_cawl_lookup($$) {
     	my $pc = $entry->get_value('PostGreyLdapPassCount');
     	my $tsl = $self->generalizedTime2UnixTime($entry->get_value('PostgreyLdapTimestampLast'));
     	
-    	$self->mylog(1, "<< $pc, $tsl");
+    	$self->mylog(4, "<< $pc, $tsl");
     	return ($pc, $tsl, $entry);
     } else {
     	return;
@@ -178,11 +172,11 @@ sub ldap_cawl_update($$) {
 	#UPDATE cawl SET count=?, first_t=?, last_t=? WHERE ip=?
 	
 	my ($self, $cawl_count, $now, $cawl_key, $cawl_first_t, $cawl_entry) = @_;
+	$self->mylog(3, ">> ldap_cawl_update( $cawl_count, $now, $cawl_key, $cawl_first_t, " . $cawl_entry->dn() . " )");
 	
 	$now = $self->unix2generalizedTime($now);
 	$cawl_first_t = $self->unix2generalizedTime($cawl_first_t);
 	
-	$self->mylog(1, ">> ldap_cawl_update( $cawl_count, $now, $cawl_key, $cawl_first_t, " . $cawl_entry->dn() . " )");
 	
 	my $result = $self->{pgl}{ldap}->modify(
 						$cawl_entry->dn(), 
@@ -199,10 +193,9 @@ sub ldap_cawl_update2($$) {
 	#UPDATE cawl SET count=?, last_t=? WHERE ip=?
 	
 	my ($self, $cawl_count, $now, $cawl_key, $cawl_entry) = @_;
+	$self->mylog(3, ">> ldap_cawl_update2( $cawl_count, $now, $cawl_key, " . $cawl_entry->dn() . " )");
 	
 	my $nowAsLDAP = $self->unix2generalizedTime($now);
-	
-	$self->mylog(1, ">> ldap_cawl_update2( $cawl_count, $now, $cawl_key, " . $cawl_entry->dn() . " )");
 	
 	my $result = $self->{pgl}{ldap}->modify(
 						$cawl_entry->dn(), 
@@ -217,13 +210,12 @@ sub ldap_triplet_lookup($$) {
 	
 	my ($self, $client_net, $sender, $recip) = @_;
 	
-	$self->mylog(1, ">> ldap_triplet_lookup( $client_net, $sender, $recip )");
+	$self->mylog(3, ">> ldap_triplet_lookup( $client_net, $sender, $recip )");
 	
 	my $filter = "(&(objectClass=GreyListTriplet)(PostgreyLdapClientAddress=$client_net)(PostgreyLdapSenderAddress=$sender)(PostgreyLdapRecipientAddress=$recip))";
 	my $base = $self->{pgl}{ldap_base};
 	
-	$self->mylog(1, "          $filter");
-	
+	$self->mylog(4, "          $filter");
 	
 	my $result = $self->{pgl}{ldap}->search ( 
 								base    => $base,
@@ -234,7 +226,7 @@ sub ldap_triplet_lookup($$) {
     
     my $resStruct = $result->entry(0);
     
-    $self->mylog(1, "Count: " . $result->count);
+    $self->mylog(4, "Count: " . $result->count);
     
     if ( $result->count > 1 ) {
     	die "Serious problems with LDAP: returning multiple results for $filter at $base. Should not be possible";
@@ -243,7 +235,7 @@ sub ldap_triplet_lookup($$) {
     	my $first = $self->generalizedTime2UnixTime($entry->get_value('PostgreyLdapTimestampFirst'));
     	my $last  = $self->generalizedTime2UnixTime($entry->get_value('PostgreyLdapTimestampLast'));
     	
-    	$self->mylog(1, "<< $first, $last");
+    	$self->mylog(3, "<< $first, $last");
     	return ($first, $last, $entry);
     } else {
     	return;
@@ -253,7 +245,7 @@ sub ldap_triplet_lookup($$) {
 
 sub ldap_triplet_create($$) {
 	my ($self, $client_net, $sender, $recip, $client_host, $first, $now, $delta_t) = @_;
-	$self->mylog(1, ">> ldap_triplet_create( $client_net, $sender, $recip, $client_host, $first, $now, $delta_t )");
+	$self->mylog(3, ">> ldap_triplet_create( $client_net, $sender, $recip, $client_host, $first, $now, $delta_t )");
 
 	my $base = $self->{pgl}{ldap_base};
 	
@@ -262,7 +254,7 @@ sub ldap_triplet_create($$) {
 	my $cn = "$client_net/$sender/$recip";
 	my $dn = "cn=" . $cn . "," . $base;
 	
-	$self->mylog(1, "       Attempting to add dn: $dn");
+	$self->mylog(4, "       Attempting to add dn: $dn");
 	
 	my $result = $self->{pgl}{ldap}->add(
 		$dn, 
@@ -287,7 +279,7 @@ sub ldap_triplet_create($$) {
 sub ldap_triplet_update($$) {
 	my ($self, $client_host, $first, $now, $delta_t, $client_net, $sender, $recip, $trip_entry) = @_;
 	
-	$self->mylog(1, ">> ldap_triplet_update( $client_host, $first, $now, $delta_t, $client_net, $sender, $recip, " . $trip_entry->dn() . " )");
+	$self->mylog(3, ">> ldap_triplet_update( $client_host, $first, $now, $delta_t, $client_net, $sender, $recip, " . $trip_entry->dn() . " )");
 
 	my $base = $self->{pgl}{ldap_base};
 	
@@ -311,7 +303,7 @@ sub ldap_triplet_update($$) {
 sub ldap_triplets_cleanup($$) {
 
 	my ($self, $max_age_t, $retry_window_t) = @_;
-	$self->mylog(1, ">> ldap_triplets_cleanup( $max_age_t, $retry_window_t )");
+	$self->mylog(3, ">> ldap_triplets_cleanup( $max_age_t, $retry_window_t )");
 	
 	my $base = $self->{pgl}{ldap_base};
 	
@@ -321,7 +313,7 @@ sub ldap_triplets_cleanup($$) {
 
 	my $filter = "(&(objectClass=GreyListTriplet)(|(PostgreyLdapTimestampLast<=$max_age_t)(&(PostgreyTimestampDelta<=$delay)(PostgreyLdapTimestampLast<=$retry_window_t))))";
 	
-	$self->mylog(1, "          Filter: $filter");
+	$self->mylog(4, "          Filter: $filter");
 	
 	my $result = $self->{pgl}{ldap}->search ( 
 								base    => $base,
@@ -333,7 +325,7 @@ sub ldap_triplets_cleanup($$) {
     my $max = $result->count;
     for ( my $i = 0 ; $i < $max ; $i++ ) {
    		my $entry = $result->entry ( $i );
-   		$self->mylog(1, "          Deleting entry " . $entry->dn());
+   		$self->mylog(3, "          Deleting entry " . $entry->dn());
 		$entry->delete();
 		$entry->update($self->{pgl}{ldap});   		
     }
@@ -365,7 +357,7 @@ sub cidr_match($$$)
 sub read_clients_whitelists($)
 {
     my ($self) = @_;
-$self->mylog(1, ">> read_clients_whitelists( )");
+	$self->mylog(3, ">> read_clients_whitelists( )");
 
     my @whitelist_clients = ();
     my @whitelist_ips = ();
@@ -430,7 +422,7 @@ sub slurp_ldap_wl_recip(@) {
 
 sub slurp_ldap_wl_($$) {
 	my ($self, $oc, $attr) = @_;
-	$self->mylog(1, ">> slurp_ldap_wl_( $oc, $attr)");
+	$self->mylog(3, ">> slurp_ldap_wl_( $oc, $attr)");
 	
 	my $filter = "(objectClass=$oc)";
 	
@@ -458,7 +450,7 @@ sub read_recipients_whitelists($)
 {
     my ($self) = @_;
 
-$self->mylog(1, ">> read_recipients_whitelists( )");
+	$self->mylog(3, ">> read_recipients_whitelists( )");
 
     my @whitelist_recipients = ();
     for my $f (@{$self->{pgl}{whitelist_recipients_files}}) {
@@ -553,20 +545,19 @@ sub ldap_check_and_reconnect($){
 	    	return;
 	    }		
 	}
-	
+	$self->log(1, "Retry LDAP connection... : " . $self->{pgl}{ldap_retryCount});
     #if we are busted, or retrying... retry
     my $Config = $self->{pgl}{config};
    	my $mesg;
  	
     for (my $i=0; $i<=5; $i++){
-  		$self->log(3, "Retry LDAP connection # $i / " . $self->{pgl}{ldap_retryCount});
 			
 		$self->{pgl}{ldap} = Net::LDAP->new($Config->param('server')) or next;
 		$mesg = $self->{pgl}{ldap}->bind($Config->param('dn'), password => $Config->param('password'));
 		
 		if (!$mesg->code) {
 			$self->{pgl}{ldap_retryCount} = 0;
-			$self->log(3, "Retry LDAP connection... Success! Yay. Back in business");
+			$self->log(1, "Retry LDAP connection... Success! Yay. Back in business");
 			return;
 		}
     }
@@ -581,7 +572,7 @@ sub ldap_check_and_reconnect($){
 sub do_maintenance($$)
 {
     my ($self, $now) = @_;
-
+	$self->mylog(3, ">> dp_maintenance( $now )");
     my $max_age_t      = $now - $self->{pgl}{max_age};
     my $retry_window_t = $now - $self->{pgl}{config}->param("retry-window");
     
@@ -653,7 +644,8 @@ sub is_new_instance($$)
 sub smtpd_access_policy($$)
 {
     my ($self, $now, $attr) = @_;
-
+	$self->mylog(3, ">> smtpd_access_policy( $now, $attr )");
+	
     # This attribute occurs in connections from the policy-test script,
     # not in a regular postfix query connection
     $now = $attr->{policy_test_time} if defined $attr->{policy_test_time};
@@ -755,7 +747,6 @@ sub smtpd_access_policy($$)
 
     my $diff = $self->{pgl}{delay} - ($now - $first);
 
-$self->mylog(1, "AWL Check. diff: $diff: last_was_successful: $last_was_successful");
     # auto whitelist clients
     # algorithm:
     # - on successful entry in the greylist db of a triplet:
@@ -832,10 +823,8 @@ $self->mylog(1, "AWL Check. diff: $diff: last_was_successful: $last_was_successf
 sub dump_whitelists() {
 	my ($self) = @_;
 	$self->mylog(1, "> dump_whitelists()");
-	
 	$self->mylog(1, "     Whitelist_Recipients:");
 	$self->mylog(1, Dumper $self->{pgl}{whitelist_recipients});
-	
 	$self->mylog(1, "     Whitelist_Clients :");
 	$self->mylog(1, "          clients :");
 	$self->mylog(1, Dumper $self->{pgl}{whitelist_clients});
@@ -1049,7 +1038,8 @@ sub main()
             hostname         => $Config->param("hostname"),
             exim 			 => defined $Config->param("exim"),
             ldap_base		 => $Config->param('base'), #we need this enough that quick access is nice.
-            ldap_retryCount  => 0
+            ldap_retryCount  => 0,
+            alarm_count	     => 0
         },
     }, 'postgreyldap';
 
@@ -1078,8 +1068,27 @@ sub main()
 sub sig_hup {
     my $self = shift;
     $self->mylog(1, "HUP received: reloading whitelists...");
+    
+    #why not, lets do everything:
+    $self->do_maintenance();
+	$self->ldap_check_and_reconnect();
+	
     $self->read_clients_whitelists();
     $self->read_recipients_whitelists();
+}
+
+#this will fire every 60 seconds (or so).
+sub sig_alarm($) {
+	my $self = shift;
+	$self->log(3, "sig_alarm()");
+	$self->do_maintenance();
+	$self->ldap_check_and_reconnect();
+	
+	if (++$self->{pgl}{alarm_count} > 5) {
+		$self->{pgl}{alarm_count}=0;
+		$self->read_clients_whitelists();
+		$self->read_recipients_whitelists();
+	}
 }
 
 sub post_bind_hook()
@@ -1096,7 +1105,7 @@ sub pre_loop_hook()
 {
     my ($self) = @_;
     
-$self->mylog(1, ">> pre_loop_hook()");
+	$self->mylog(3, ">> pre_loop_hook()");
 
     # be sure to put in syslog any warnings / fatal errors
     if($self->{server}{log_file} eq 'Sys::Syslog') {
@@ -1120,13 +1129,6 @@ $self->mylog(1, ">> pre_loop_hook()");
     
 }
 
-sub sig_alarm($) {
-	my $self = shift;
-	$self->log(3, "sig_alarm()");
-	$self->do_maintenance();
-	$self->ldap_check_and_reconnect();
-	print time, "\n"
-}
 
 sub mux_input()
 {

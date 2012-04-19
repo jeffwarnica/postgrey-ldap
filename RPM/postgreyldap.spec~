@@ -22,7 +22,7 @@
 
 
 Name:           postgreyldap
-Requires:       perl >= 5.6.0, perl-IO-Multiplex perl-Net-Server perl-ldap
+Requires:       perl >= 5.6.0, perl-IO-Multiplex perl-Net-Server perl-ldap perl-Config-Simple
 BuildRequires:  postfix
 %if 0%{?suse_version} >= 1000
 Suggests:       cron
@@ -32,7 +32,7 @@ License:        GPL-2.0+
 Group:          Productivity/Networking/Email/Utilities
 Summary:        PostfixLDAP LDAP Backed greylisting policy server
 Version:        0.0.1
-Release:        1
+Release:        2
 Url:            https://github.com/jeffwarnica/postgrey-ldap
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Source0:        http://postgrey.schweikert.ch/pub/%name-%{version}.tar.bz2
@@ -77,7 +77,8 @@ install -d %{buildroot}/%{_mandir}/man8
 install -m 0644 %{name}.8 %{buildroot}%{_mandir}/man8/%{name}.8
 #install -m 0644 postgreyreport.8 %{buildroot}%{_mandir}/man8/postgreyreport.8
 # configuration
-install -d %{buildroot}/%{_sysconfdir}/%{name}
+install -D -m 0644 config.dist $RPM_BUILD_ROOT/etc/postfix/postgreyldap.conf
+#install -d %{buildroot}/%{_sysconfdir}/%{name}
 #install -m 0644 postgrey_whitelist_clients %{buildroot}/%{_sysconfdir}/%{name}/whitelist_clients
 #install -m 0644 postgrey_whitelist_recipients %{buildroot}/%{_sysconfdir}/%{name}/whitelist_recipients
 touch whitelist_clients.local
@@ -90,8 +91,7 @@ install -D -m 644 %{SOURCE2} %{buildroot}/var/adm/fillup-templates/sysconfig.%{n
 install -d %{buildroot}/%{_var}/lib/%{name}
 # directory for socket
 install -d -m 0775 %{buildroot}/%{_var}/spool/postfix/%{name}
-# some helper tools
-install -m 0644 %{SOURCE4} .
+
 
 %pre
 /usr/sbin/useradd --system -g nogroup -s /bin/false -c "Postgrey Daemon" -d /var/lib/%{name} %{name} 2> /dev/null || :
@@ -110,18 +110,20 @@ install -m 0644 %{SOURCE4} .
 %files
 %defattr(-,root,root)
 %dir %{_sysconfdir}/%{name}
-%config(noreplace) %{_sysconfdir}/%{name}/whitelist_recipients
-%config(noreplace) %{_sysconfdir}/%{name}/whitelist_clients
-%config(noreplace) %{_sysconfdir}/%{name}/whitelist_clients.local
+%config(noreplace) /etc/postfix/postgreyldap.conf
+#%config(noreplace) %{_sysconfdir}/%{name}/whitelist_recipients
+#%config(noreplace) %{_sysconfdir}/%{name}/whitelist_clients
+#%config(noreplace) %{_sysconfdir}/%{name}/whitelist_clients.local
 %config %attr(0755,root,root) /etc/init.d/%{name}
 %{_sbindir}/%{name}
-%{_sbindir}/postgreyreport
 %{_sbindir}/rc%{name}
 %dir %attr(0755,postgrey,postfix) %{_var}/lib/%{name}
 /var/adm/fillup-templates/sysconfig.%{name}
 %dir %attr(0770,postgrey,postfix) %{_var}/spool/postfix/%{name}
 %doc %{_mandir}/man?/*
-%doc Changes COPYING README README.SUSE examples %{name}_daily_greylist.crontab
+#%doc Changes COPYING README README.SUSE examples %{name}_daily_greylist.crontab
+%doc COPYING README ldap/schema4ldapadd.ldif ldap/import-client.ldif ldap/indexes.ldif ldap/schema.ldif ldap/README.ldap ldap/postgrey_whitelist_recipients ldap/access.ldif ldap/import-recipient.ldif ldap/postgrey_whitelist_clients ldap/whitelist2ldap.pl
+
 
 %changelog
 * Tue Apr 3 2012 jeff@coherentnetworksolutions.com
