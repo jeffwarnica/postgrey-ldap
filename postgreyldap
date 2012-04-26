@@ -95,7 +95,12 @@ sub ldap_cawl_cleanup($$) {
                                 scope   => "sub",
                                 filter  => "(&(objectClass=GreyListClientAutoWhitelist)(PostgreyLdapTimestampLast<=$max_age_t))",
                                 attrs   =>  ['dn']
-    ) || die "$@";
+    ); # || die "$@";
+    
+    if (!$result->code) {
+	    warn "failed to cleanup: ", $result->error ;
+    	return;
+    }
     
     my $max = $result->count;
     for ( my $i = 0 ; $i < $max ; $i++ ) {
@@ -152,8 +157,13 @@ sub ldap_cawl_lookup($$) {
                                 scope   => "sub",
                                 filter  => $filter,
                                 attrs   =>  ['PostGreyLdapPassCount','PostgreyLdapTimestampLast']
-    ) || die "$@";
-    	 
+    );# || die "$@";
+    	
+	if (!$result->code) {
+	    warn "failed to do cawl lookup: ", $result->error ;
+    	return;
+    }
+    
     $self->mylog(1, "Count: " . $result->count);
     
     if ( $result->count > 1 ) {
@@ -227,7 +237,12 @@ sub ldap_triplet_lookup($$) {
                                 scope   => "sub",
                                 filter  => $filter,
                                 attrs   =>  ['PostgreyLdapTimestampFirst','PostgreyLdapTimestampLast']
-    ) || die "$@";
+    );# || die "$@";
+    
+    if (!$result->code) {
+	    warn "failed to do triplet lookup: ", $result->error ;
+    	return;
+    }
     
     my $resStruct = $result->entry(0);
     
@@ -329,7 +344,12 @@ sub ldap_triplets_cleanup($$) {
                                 scope   => "sub",
                                 filter  => $filter,
                                 attrs   =>  ['dn']
-    ) || die "$@";
+    );# || die "$@";
+    
+    if (!$result->code) {
+	    warn "failed to do triplet cleanup: ", $result->error ;
+    	return;
+    }
     
     my $max = $result->count;
     for ( my $i = 0 ; $i < $max ; $i++ ) {
@@ -444,7 +464,12 @@ sub slurp_ldap_wl_($$) {
                                 scope   => "sub",
                                 filter  => $filter,
                                 attrs   =>  [$attr]
-    ) || die "$@";
+    );# || die "$@";
+    
+    if (!$result->code) {
+	    warn "failed to do LDAP slurp of $oc : ", $result->error ;
+    	return;
+    }
     
     my @recips;
     
