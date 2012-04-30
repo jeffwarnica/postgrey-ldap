@@ -97,7 +97,7 @@ sub ldap_cawl_cleanup($$) {
                                 attrs   =>  ['dn']
     ); # || die "$@";
     
-    if (!$result->code) {
+    if ($result->code) {
 	    warn "failed to cleanup: ", $result->error ;
     	return;
     }
@@ -159,7 +159,7 @@ sub ldap_cawl_lookup($$) {
                                 attrs   =>  ['PostGreyLdapPassCount','PostgreyLdapTimestampLast']
     );# || die "$@";
     	
-	if (!$result->code) {
+	if ($result->code) {
 	    warn "failed to do cawl lookup: ", $result->error ;
     	return;
     }
@@ -239,7 +239,7 @@ sub ldap_triplet_lookup($$) {
                                 attrs   =>  ['PostgreyLdapTimestampFirst','PostgreyLdapTimestampLast']
     );# || die "$@";
     
-    if (!$result->code) {
+    if ($result->code) {
 	    warn "failed to do triplet lookup: ", $result->error ;
     	return;
     }
@@ -346,7 +346,7 @@ sub ldap_triplets_cleanup($$) {
                                 attrs   =>  ['dn']
     );# || die "$@";
     
-    if (!$result->code) {
+    if ($result->code) {
 	    warn "failed to do triplet cleanup: ", $result->error ;
     	return;
     }
@@ -393,18 +393,23 @@ sub read_clients_whitelists($)
     my @whitelist_cidr = ();
     for my $f (@{$self->{pgl}{whitelist_clients_files}}) {
     	my @lines;
+    	$self->mylog(3, "\t Whitelist' file': $f");
     	if ($f eq "LDAP") {
     		@lines = $self->slurp_ldap_wl_clients();
+    		$self->mylog(3, "slurp_ldap_wl_recip returned something of size: " . @lines);
     	} else {
+    		$self->mylog(3, "\t reading Whitelist file: $f");
     		if (open(INPUT, "<$f")) {
-				(@lines) = <INPUT>; 
+				(@lines) = <INPUT>;
+				$self->mylog(3, " File slurp read in the following number of lines: " . @lines); 
 				close(INPUT);
     		} else {
     			 # do not warn about .local file: maybe the user just doesn't have one
-            	warn "can't open $f: $!\n" unless $f =~ /\.local$/;
+            	warn "can't open $f: $!\n"; # unless $f =~ /\.local$/;
     		}
     	}
         foreach (@lines) {
+        	$self->mylog(4, "\t Trying to slurp: $_");
             s/#.*$//; s/^\s+//; s/\s+$//; next if $_ eq '';
             if(/^\/(\S+)\/$/) {
                 # regular expression
@@ -430,6 +435,7 @@ sub read_clients_whitelists($)
             }
         }
     }
+    $self->mylog(3, " whitelist_clients, whitelist_ips, whitelist_cidr are sized: " . @whitelist_clients . ", " . @whitelist_ips . ", " . @whitelist_cidr);
     $self->{pgl}{whitelist_clients} = \@whitelist_clients;
     $self->{pgl}{whitelist_ips}     = \@whitelist_ips;
     $self->{pgl}{whitelist_cidr}    = \@whitelist_cidr;
@@ -466,7 +472,7 @@ sub slurp_ldap_wl_($$) {
                                 attrs   =>  [$attr]
     );# || die "$@";
     
-    if (!$result->code) {
+    if ($result->code) {
 	    warn "failed to do LDAP slurp of $oc : ", $result->error ;
     	return;
     }
@@ -489,8 +495,10 @@ sub read_recipients_whitelists($)
     my @whitelist_recipients = ();
     for my $f (@{$self->{pgl}{whitelist_recipients_files}}) {
 		my @recips;
+		$self->mylog(3, "\t Whitelist' file': $f");
     	if ($f eq "LDAP") {
     		@recips = $self->slurp_ldap_wl_recip();
+    		$self->mylog(3, "slurp_ldap_wl_recip returned something of size: " . @recips);
     	} else {
     		if (open(INPUT, "<$f")) {
 				(@recips) = <INPUT>; 
@@ -501,6 +509,7 @@ sub read_recipients_whitelists($)
     		}
     	}
         foreach (@recips) {
+        	$self->mylog(3, "Trying ty slurp entry: $_");
             s/#.*$//; s/^\s+//; s/\s+$//; next if $_ eq '';
             my ($user, $domain) = split(/\@/, $_, 2);
             if(/^\/(\S+)\/$/) {
@@ -519,7 +528,7 @@ sub read_recipients_whitelists($)
             } else {
                 # domain ($user is the domain)
                 push @whitelist_recipients, qr{(?:^|\.)\Q$user\E$}i;
-            }
+            }slurp_ldap_wl_recip returned something 
         }
     }
     $self->{pgl}{whitelist_recipients} = \@whitelist_recipients;
@@ -859,16 +868,14 @@ sub smtpd_access_policy($$)
 
 sub dump_whitelists() {
 	my ($self) = @_;
-	$self->mylog(1, "> dump_whitelists()");
-	$self->mylog(1, "     Whitelist_Recipients:");
-	$self->mylog(1, Dumper $self->{pgl}{whitelist_recipients});
-	$self->mylog(1, "     Whitelist_Clients :");
-	$self->mylog(1, "          clients :");
-	$self->mylog(1, Dumper $self->{pgl}{whitelist_clients});
-	$self->mylog(1, "          ips :");
-	$self->mylog(1, Dumper $self->{pgl}{whitelist_ips});
-	$self->mylog(1, "          cidr :");
-	$self->mylog(1, Dumper $self->{pgl}{whitelist_cidr});
+	print "Dumping Whitelists\n\twhitelist_recipients:\n";
+	print Dumper $self->{pgl}{whitelist_recipients};
+	print "\twhitelist_clients:\n";
+	print Dumper $self->{pgl}{whitelist_clients};
+	print "\twhitelist_ips:\n";
+	print Dumper $self->{pgl}{whitelist_ips};
+	print "\twhitelist_cidr:\n";
+	print Dumper $self->{pgl}{whitelist_cidr};
 }
 
 sub main()
@@ -1076,7 +1083,7 @@ sub main()
             exim 			 => defined $Config->param("exim"),
             ldap_base		 => $Config->param('base'), #we need this enough that quick access is nice.
             ldap_retryCount  => 0,
-            alarm_count	     => 0
+            alarm_count	     => 0,
         },
     }, 'postgreyldap';
 
