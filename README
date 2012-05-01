@@ -19,11 +19,14 @@ Quick Start
 - Configure an LDAP account for PostgreyLDAP, and (ideally) create an OU for 
   postgreyldap to use, which the PostgreyLDAP account has access to.  
   
-- Configure postgreyldap from the provided exmaple config.dist file
+- Configure postgreyldap from the provided example config.dist file
 
 - Have postgreyldap start as a system service.
 
 - Possibly migrate file-based whitelists into LDAP.
+
+- You may verify configuration and whitelist settings by running:
+  $  postgreyldap --config postgreyldap.conf --dumpwhitelist --dumpconfig 
  
 
 Why?
@@ -55,9 +58,8 @@ I don't want to - can't - rely on a single NFS server for greylisting to work.
 
 Why not MySQL or PostgreSQL?
 
-- My front end routers/MX servers are not currently running either.
-- I have no experience with replicated SQL, and especially no experience with 
-multiple-master replicated SQL.
+- My front end routers/MX servers are not currently running either, however they 
+are running distributed/shared LDAP. 
 
 Why LDAP?
 

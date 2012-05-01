@@ -16,8 +16,6 @@
 # license that conforms to the Open Source Definition (Version 1.9)
 # published by the Open Source Initiative.
 
-#
-
 # norootforbuild
 
 
@@ -31,8 +29,8 @@ PreReq:         %insserv_prereq, %fillup_prereq /usr/sbin/useradd
 License:        GPL-2.0+
 Group:          Productivity/Networking/Email/Utilities
 Summary:        PostfixLDAP LDAP Backed greylisting policy server
-Version:        0.0.8
-Release:        1
+Version:        0.0.10
+Release:        3
 Url:            https://github.com/jeffwarnica/postgrey-ldap
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Source0:        http://postgrey.schweikert.ch/pub/%name-%{version}.tar.bz2
@@ -43,17 +41,19 @@ Source3:        %{name}.README.SUSE
 %description
 PostgreyLDAP is a Postfix policy server implementing greylisting, 
 which is backed by an LDAP database, allowing shared greylisting across
-mail servers. When a request for delivery of a mail is received by 
+mail servers. When a incoming SMTP message is received by 
 Postfix via SMTP, the triplet CLIENT_IP / SENDER / RECIPIENT is built. 
 If it is the first time that this triplet is seen, or if the triplet 
-was first seen less than 5 minutes, then the mail gets rejected with
+was first seen less than 5 minutes ago, then the mail gets rejected with
 a temporary error. Hopefully spammers or viruses will not try again 
-later, as it is however required per RFC.
+later, as it is however required per RFC. Legitimate mail server will 
+retry, and this dramatically reduces illegitimate mail, with minimal 
+load on the server.
 
-Being LDAP backed, the greylist databae can be shared across multiple
+Being LDAP backed, the greylist database can be shared across multiple
 mail servers. While SQL databases would provide the same, with 
 SuSE/YaST it is very likely that mail servers are using LDAP already, 
-and not necessarally an SQL server
+and not necessarily an SQL server. 
 
 
 Authors:
@@ -71,16 +71,11 @@ pod2man -s 8 postgreyldap > postgreyldap.8
 # the binaries
 install -d %{buildroot}/%{_sbindir}
 install -m 0755 postgreyldap %{buildroot}/%{_sbindir}/%{name}
-#install -m 0755 contrib/postgreyreport %{buildroot}/%{_sbindir}/postgreyreport
 # manual
 install -d %{buildroot}/%{_mandir}/man8
 install -m 0644 %{name}.8 %{buildroot}%{_mandir}/man8/%{name}.8
-#install -m 0644 postgreyreport.8 %{buildroot}%{_mandir}/man8/postgreyreport.8
 # configuration
 install -D -m 0644 config.dist $RPM_BUILD_ROOT/etc/postfix/postgreyldap.conf
-#install -d %{buildroot}/%{_sysconfdir}/%{name}
-#install -m 0644 postgrey_whitelist_clients %{buildroot}/%{_sysconfdir}/%{name}/whitelist_clients
-#install -m 0644 postgrey_whitelist_recipients %{buildroot}/%{_sysconfdir}/%{name}/whitelist_recipients
 touch whitelist_clients.local
 install -m 0644 whitelist_clients.local %{buildroot}/%{_sysconfdir}/%{name}
 # init file and configuration
@@ -91,7 +86,6 @@ install -D -m 644 %{SOURCE2} %{buildroot}/var/adm/fillup-templates/sysconfig.%{n
 install -d %{buildroot}/%{_var}/lib/%{name}
 # directory for socket
 install -d -m 0775 %{buildroot}/%{_var}/spool/postfix/%{name}
-
 
 %pre
 /usr/sbin/useradd --system -g nogroup -s /bin/false -c "Postgrey Daemon" -d /var/lib/%{name} %{name} 2> /dev/null || :
